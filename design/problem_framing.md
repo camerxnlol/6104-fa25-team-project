@@ -92,17 +92,16 @@ Many people find it difficult to connect with others from different countries be
 
 ### Time – Reappropriation
 
-* **Observation:** Schools and educators might reappropriate the app as a classroom resource for teaching world cultures, languages, or music appreciation.
-* **Design Response:** Include a safety filter to block explicit content, allowing safe use in educational settings.
+* **Observation:** Schools and educators might reappropriate the app as a classroom resource for teaching world cultures, languages, or music appreciation. Teachers could use playlists to introduce students to diverse traditions or social issues. Students can use the app to explore music outside of the environment in which they grew up, or use it as a source of research.
+* **Design Response:** Include a safety filter to block explicit content when this filter is turned on, allowing safe use in educational settings.
 
 ### Pervasiveness – Widespread Use
 
 * **Observation:** At scale, the app can provide richer catalogs and foster global understanding but may face algorithmic bias, moderation challenges, or user overconfidence in cultural intelligence.
+* If the app scales from thousands to millions of users, benefits include richer catalogs of suggestions from worldwide users, better detection of inappropriate or miscategorized songs through crowdsourced user flagging, and better cultural understanding in society as a whole. Breakdowns include Dunning Kruger Effect with regards to cultural intelligence (CQ) (where users may overestimate their cultural understanding despite limited exposure, potentially leading to cultural appropriation), algorithmic bias favoring already popular artists, and moderation scaling challenges.
 * **Design Response:** Use community-submitted suggestions to counter algorithmic and LLM bias.
 
----
-
-## Values
+### Values
 
 * **Autonomy:** Users choose what to listen to.
 * **Inclusivity:** Represent many cultures and artists.
@@ -110,9 +109,7 @@ Many people find it difficult to connect with others from different countries be
 
 **Design Response:** Users can freely select countries to listen to. The app provides global coverage and lets users suggest songs.
 
----
-
-## Environmental Sustainability
+### Environmental Sustainability
 
 * **Observation:** LLM usage has carbon costs. As the app grows, personalized AI recommendations could increase environmental impact.
 * **Design Response:** Cache recommendations in a cloud database and integrate user suggestions to reduce reliance on LLM calls over time.
