@@ -1,2 +1,3 @@
-# 6104-fa25-team-project
-Team project for the FA25 semester of 6.104
+# 6.104 Team Project Repository
+## Assignments
+- [Problem Framing](design/problem_framing.md)
