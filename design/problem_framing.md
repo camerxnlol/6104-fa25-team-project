@@ -72,7 +72,7 @@ Many people find it difficult to connect with others from different countries be
 
 ## Features
 
-* **Friends**: Users can add each other as friends, creating a personal network to share and discover music together. This helps people connect through shared songs and builds relationships that cross geographical borders.
+* **Friends (stretch goal)**: Users can add each other as friends, creating a personal network to share and discover music together. This helps people connect through shared songs and builds relationships that cross geographical borders.
 * **Community Recommendation**: Users can contribute their favorite songs from each country and see others’ picks ranked by popularity. This collective sharing exposes listeners to authentic cultural favorites and fosters global community. Recommendations are displayed via the YouTube API.
 * **System Recommendation**: An AI feature suggests lesser-known or emerging artists from each country, including indigenous musicians. This expands users’ exposure to diverse sounds beyond mainstream playlists. Recommendations are displayed via the YouTube API. We have validated that Gemini is able to produce well-formed, correct YouTube links in response to prompts.
 ```
@@ -90,7 +90,7 @@ Link: [https://www.youtube.com/watch?v=FjIu_3Mv95A, https://www.youtube.com/watc
 * **Recommendation Flagging**: Users can flag incorrect or inappropriate song recommendations to ensure accuracy and cultural respect. This keeps the platform trustworthy and protects against misinformation.
 * **Passport**: A visual tracker that shows all the countries a user has explored through music. It gamifies cultural exploration and encourages users to experience new sounds.
 * **Public and Private Playlists**: Users can organize songs they love into playlists, choosing to keep them private or share them publicly. Sharing playlists spreads cultural appreciation and connects listeners.
-* **Cultural Deep Dive**: For each country, users can access a page explaining its musical history and indigenous traditions. This deepens cultural understanding and provides context for the music.
+* **Cultural Deep Dive (stretch goal)**: For each country, users can access a page explaining its musical history and indigenous traditions. This deepens cultural understanding and provides context for the music.
 * **Safety Filter**: Users can toggle this feature to avoid explicit songs, allowing younger audiences to safely use the app.
 
 ---
