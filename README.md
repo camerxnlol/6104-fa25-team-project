@@ -6,3 +6,4 @@
 - Nicholas Wei (nwei@mit.edu)
 ## Assignments
 - [Problem Framing](design/problem_framing.md)
+- [Functional Design](design/functional_design.md)
