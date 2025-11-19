@@ -4,11 +4,11 @@ We identified several essential (P0) backend concepts: **CountryRecommendations,
 
 ## Timeline & Feature Milestones
 
-Key checkpoints:
+Key dates:
 * **11/25 – Checkpoint Alpha**: All essential backend concepts, syncs, and minimal frontend implemented
 * **12/02 – Checkpoint Beta**: Stretch-goal concepts implemented and polished frontend.
-* **By 12/07 – User Testing complete**
-* **By 12/09 – Final demo & report**
+* **12/07 – User Testing complete**
+* **12/09 – Final demo & report**
 
 ### 1.1 Milestone Table
 
@@ -56,9 +56,7 @@ Key checkpoints:
 ## 3. Key Risks, Mitigations, and Fallbacks
 ### 3.1 External APIs & LLM Reliability
 
-**Risk**
-* LLM (e.g., Gemini) may return invalid or low-quality YouTube links, or calls may be slow/limited. 
-* YouTube API quotas or regional restrictions could break the “play this song” experience.
+**Risk**: LLM (e.g., Gemini) may return invalid or low-quality YouTube links, or calls may be slow/limited; YouTube API quotas or regional restrictions could break the “play this song” experience.
 
 **Mitigations**
 * Add a validation layer: check that returned URLs are valid YouTube links; optionally prefetch metadata (title, channel) to confirm.
@@ -71,40 +69,32 @@ Key checkpoints:
 
 ### 3.2 Frontend Complexity & Performance (Globe, Visualizations)
 
-**Risk**
-* Globe or map UI and passport visualization may be time-consuming or slow on some devices.
+**Risk**: Globe or map UI and passport visualization may be time-consuming or slow on some devices.
 
 **Mitigations**
 * Start with a simple country list/grid, then layer on a globe visualization
 * Look for existing code on interactive globe UIs
 
-**Fallbacks**
-* If the globe cannot be displayed for a user, a country list/grid or a 2D map should exist as a fallback
-
-Here are 2 extra risks you can drop into your “Risks / Mitigations / Fallbacks” section. I’ll write them in Markdown so you can just paste them.
+**Fallbacks**: If the globe cannot be displayed for a user, a country list/grid or a 2D map should exist as a fallback
 
 ### 3.3 Abuse of the Reporting System
 
-**Risk**
-* The reporting/flagging system could be abused (e.g., coordinating against certain genres/countries, or users mass-reporting songs they personally dislike)
+**Risk**: The reporting/flagging system could be abused (e.g., coordinating against certain genres/countries, or users mass-reporting songs they personally dislike)
 
 **Mitigations**
 * Explore rate-limit reporting actions by user
 * Group reports by type/reason (e.g., “offensive content”, “misleading/incorrect country”, “low quality”)
 * Use a combination of signals to hide content (e.g., # of unique reporters, diversity of reporters, severity reason) instead of a simple raw count.
 
-**Fallbacks**
-* In the scope of this class project, it's not very realistic that the reporting system could be abused, but if this were a real-world app, reporting could be a two-stage model where content is first marked as “under review” (soft warning), but only removed from default views once a human/moderation pass verifies the reports.
+**Fallbacks**: In the scope of this class project, it's not very realistic that the reporting system could be abused, but if this were a real-world app, reporting could be a two-stage model where content is first marked as “under review” (soft warning), but only removed from default views once a human/moderation pass verifies the reports.
 
 ### 3.4 Cultural Sensitivity & Perceived Stereotyping in Recommendations
 
-**Risk**
-* Country-based recommendations and cultural deep dives might inadvertently reinforce stereotypes or only recommend Westernized global music, which might make users from those regions may feel misrepresented or offended
+**Risk**:  Country-based recommendations and cultural deep dives might inadvertently reinforce stereotypes or only recommend Westernized global music, which might make users from those regions may feel misrepresented or offended
 
 **Mitigations**
 * Emphasize diversity (both music type and popularity vs. underground) within each country in the prompt design
 * Provide transparent descriptions/disclaimers that recommendations are a starting point rather than an authoritative representation of a culture.
 * The reporting system when used properly can help refine country-level recs over time.
 * 
-**Fallbacks**
-* If we lack confidence in certain countries’ coverage, start with a smaller “featured countries” set where we have stronger, more vetted recommendations, and clearly label others as “experimental”.
+**Fallbacks**: If we lack confidence in certain countries’ coverage, start with a smaller “featured countries” set where we have stronger, more vetted recommendations, and clearly label others as “experimental”.
