@@ -111,6 +111,36 @@
 
 ## Reporting
 
+### concept: Reporting
+
+- **purpose**: to create and keep track of reports made on objects
+- **principle**: the user can initialize objects to be reported. Any time they
+  would like to, they can report objects, which stores the report for later use
+- **state**:
+  - a set of Reports with
+    - an objectId of type string
+    - a count of type Number
+    - a reporters set of userId string
+- **actions**:
+  - `InitializeObject (objectId: string): (objectId: string)`
+    - **requires**: a report containing objectId doesn’t already exist
+    - **effects**: Creates a new report with objectId. Set the report’s count=0
+      and reporters set to empty. Return objectId
+  - `Report (objectId: string, userId: string)`
+    - **requires**: a report for objectId exists and userId isn’t in its
+      reporters set
+    - **effects**: increment the count of the report that contains objectId. Add
+      userId to its reporters set
+  - `Unreport (objectId: string, userId: string)`
+    - **requires**: a report for objectId exists and userId is in its reporters
+      set
+    - **effects**: decrement the count for the report. Remove userId from its
+      reporters set.
+- **queries**:
+  - `_getReportCount (objectId: string): (count: Number)`
+    - **requires**: a report for objectId exists
+    - **effects**: returns the count of the report
+
 ## Passport
 
 ### concept: Passport \[User, Song]
@@ -218,3 +248,181 @@
     - **effects**: returns all information for the given `playlist`
 
 ## Syncs
+**sync** LoginCreatesSession
+*purpose*: Automatically create a session for a user upon successful login.
+```sync
+when
+    UserAuthentication.login (username, password): (user)
+then
+    Sessioning.create (user)
+```
+
+---
+**sync** LogoutDeletesSession\
+*purpose*: Terminate a user's session when they request to log out.
+```sync
+when
+    Requesting.request (path: "/logout", session)
+where
+    in Sessioning: _getUser (session) gets user
+then
+    Sessioning.delete (session)
+```
+
+---
+**sync** InitializeReportForNewCommunityRec\
+*purpose*: Ensure every new community-submitted recommendation can be reported on.
+```sync
+when
+    CountryRecommendation.addCommunityRec (): (recId)
+then
+    Reporting.InitializeObject (objectId: recId)
+```
+
+---
+**sync** RemoveRecommendationOnHighReports\
+*purpose*: Automatically remove a community recommendation if it receives too many reports (e.g., more than 5).
+```sync
+when
+    Reporting.Report (objectId, userId)
+where
+    in Reporting: _getReportCount (objectId) gets count
+    count > 5
+then
+    CountryRecommendation.removeCommunityRec (recId: objectId)
+```
+
+---
+**sync** AuthorizeAndCreatePlaylist\
+*purpose*: A representative example of the authorization pattern. It checks for a valid session before allowing a user to create a playlist. This pattern would be replicated for all actions requiring an authenticated user.
+```sync
+when
+    Requesting.request (path: "/playlists/create", name, session)
+where
+    in Sessioning: _getUser (session) gets user
+then
+    Playlist.createPlaylist (owner: user, name)
+```
+
+### Additional Auth Syncs
+**sync** HandleRegisterRequest\
+*purpose*: Trigger the user registration process when a request is made to the register endpoint.
+```sync
+when
+    Requesting.request (path: "/register", username, password)
+then
+    UserAuthentication.register (username, password)
+```
+
+---
+**sync** RegisterSuccessResponse\
+*purpose*: Respond to the original registration request with the new user's ID upon success.
+```sync
+when
+    Requesting.request (path: "/register", username): (request)
+    UserAuthentication.register (username): (user)
+then
+    Requesting.respond (request, user, status: "registered")
+```
+
+---
+**sync** RegisterErrorResponse\
+*purpose*: Respond to a failed registration attempt with an error message (e.g., username taken).
+```sync
+when
+    Requesting.request (path: "/register", username): (request)
+    UserAuthentication.register (username): (error)
+then
+    Requesting.respond (request, error)
+```
+
+---
+**sync** HandleLoginRequest\
+*purpose*: Trigger the user login process when a request is made to the login endpoint.
+```sync
+when
+    Requesting.request (path: "/login", username, password)
+then
+    UserAuthentication.login (username, password)
+```
+
+---
+**sync** LoginSuccessResponse\
+*purpose*: Respond to a successful login request with the newly created session ID. This sync relies on `LoginCreatesSession` firing first.
+```sync
+when
+    Requesting.request (path: "/login"): (request)
+    Sessioning.create (): (session)
+then
+    Requesting.respond (request, session)
+```
+
+---
+**sync** LoginErrorResponse\
+*purpose*: Respond to a failed login attempt with an error message.
+```sync
+when
+    Requesting.request (path: "/login"): (request)
+    UserAuthentication.login (): (error)
+then
+    Requesting.respond (request, error)
+```
+### Additional Syncs For Checking if User has Valid Session
+**sync** LogSongExplorationInPassport\
+*purpose*: When a user listens to a song (proxied by a request for its details), log this activity in their passport to track their musical journey.
+```sync
+when
+    Requesting.request (path: "/songs/details", song, country, session)
+where
+    in Sessioning: _getUser (session) gets user
+then
+    Passport.logExploration (user, song, country)
+```
+
+---
+**sync** GetExploredCountries\
+*purpose*: Allow a user to retrieve the list of all countries they have explored from their passport.
+```sync
+when
+    Requesting.request (path: "/passport/countries", session): (request)
+where
+    in Sessioning: _getUser (session) gets user
+    in Passport: _getExploredCountries (user) gets countries
+then
+    Requesting.respond (request, countries)
+```
+
+---
+**sync** HandleAddCommunityRecRequest\
+*purpose*: Authorize and process a user's request to add a new community song recommendation.
+```sync
+when
+    Requesting.request (path: "/recommendations/add", countryName, title, artist, language, url, session)
+where
+    in Sessioning: _getUser (session) gets user
+then
+    CountryRecommendation.addCommunityRec (countryName, title, artist, language, url)
+```
+
+---
+**sync** AddCommunityRecResponse\
+*purpose*: Confirm the successful addition of a community recommendation by responding with its new ID.
+```sync
+when
+    Requesting.request (path: "/recommendations/add"): (request)
+    CountryRecommendation.addCommunityRec (): (recId)
+then
+    Requesting.respond (request, recId)
+```
+
+---
+**sync** HandleReportRequest\
+*purpose*: Authorize and process a user's request to report a piece of content.
+```sync
+when
+    Requesting.request (path: "/report", objectId, session)
+where
+    in Sessioning: _getUser (session) gets user
+then
+    Reporting.Report (objectId, userId: user)
+```
