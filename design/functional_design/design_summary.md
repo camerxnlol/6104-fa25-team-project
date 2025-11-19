@@ -1,1 +1,8 @@
 # Design Summary
+We currently have four concepts, CountryRecommendations, Passport, Playlist, and Reporting, that work together to solve the problem we proposed. CountryRecommendations is how users will get music recommendations based on country (from the community or the system). Passport allows users to keep track of what kinds of music they've explored, while Playlist allows them to save and organize collections of ones they really like. 
+
+Reporting is a concept we designed to solve some problems brought up in our ethical analysis, namely in terms of non-targeted and widespread use. Some users might be bad actors who use the app to spread misinformation or to act maliciously, and Reporting allows us to make and manage reports for stopping these sorts of behavior. It ensures that the app is safe and helpful to all users. Some issues still exist however. Reporting isn’t a fail-safe method of ensuring accurate recommendations. Additionally, with more users, the Reporting concept itself could backfire should multitudes of bad actors decide to report all the “good” recommendations. 
+
+In our ethical analysis, we identified environmental/economical sustainability in regards to our use of an LLM. As a response to this, we will design CountryRecommendations to cache results and query from the database rather than prompting an LLM every time a user wants a system-generated recommendation.
+
+It should be noted that we are not addressing the topic of classroom reappropriation (which was mentioned in our ethical analysis) in the initial plan for this project due to time and complexity constraints. It is more of a stretch goal as it does not directly affect the functionality of the app and is more of an expansion of the app to different user bases.
