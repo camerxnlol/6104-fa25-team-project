@@ -20,5 +20,9 @@ getCommunityRecs with stored recs less than QUERY_QUANTITY (return list with all
 getCommunityRecs with stored recs greater than QUERY_QUANTITY (return list with QUERY_QUANTITY amount)  
 
 **addCommunityRec**  
+addCommunityRec with exact duplicate (returns existing recId)  
 
 **removeCommunityRec**  
+removeCommunityRec with valid COMMUNITY rec (successfully removes)  
+removeCommunityRec with non-existent recId (returns error)  
+removeCommunityRec with SYSTEM rec (returns error, cannot remove SYSTEM recs)  
