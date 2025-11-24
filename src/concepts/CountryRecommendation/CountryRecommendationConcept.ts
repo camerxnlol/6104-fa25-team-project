@@ -19,11 +19,12 @@ type recId = ID;
 
 interface CountryEntry {
   _id: string;
-  recommendations: RecommendationEntry[];
+  recommendations: recId[];
 }
 
 interface RecommendationEntry {
   _id: recId;
+  country: string;
   songTitle: string;
   artist: string;
   language: string;
@@ -51,13 +52,12 @@ export default class CountryRecommendationConcept {
   /**
    * @effects if countryName doesn't already exist, create new Country with empty recs
    */
-  private async createCountry(
+  private async getCountryEntry(
     countryName: string,
-  ): Promise<Empty | { error: string }> {
+  ): Promise<CountryEntry | { error: string }> {
     const existing = await this.countryCollection.findOne({ _id: countryName });
     if (existing) {
-      console.log(`Country ${countryName} already exists.`);
-      return { error: `Country ${countryName} already exists` };
+      return existing;
     }
 
     await this.countryCollection.insertOne({
@@ -65,11 +65,16 @@ export default class CountryRecommendationConcept {
       recommendations: [],
     });
 
+    const newCountryEntry = await this.countryCollection.findOne({
+      _id: countryName,
+    });
+    if (!newCountryEntry) return { error: "Failed to create country." };
+
     console.log(
       `CREATED new entry for country: ${countryName}`,
     );
 
-    return {};
+    return newCountryEntry;
   }
 
   /**
@@ -91,20 +96,17 @@ export default class CountryRecommendationConcept {
   async getSystemRecs(
     countryName: string,
   ): Promise<{ recommendations: RecommendationEntry[] } | { error: string }> {
-    let countryEntry = await this.countryCollection.findOne({
-      _id: countryName,
-    });
-    if (!countryEntry) {
-      this.createCountry(countryName);
-      countryEntry = await this.countryCollection.findOne({
-        _id: countryName,
-      });
+    const countryEntry = await this.getCountryEntry(countryName);
+    if ("error" in countryEntry) {
+      return { error: countryEntry.error };
     }
 
     try {
-      const systemRecs = countryEntry!.recommendations.filter(
-        (rec) => rec.recType === "SYSTEM",
-      );
+      const systemRecs = await this.recommendationCollection.find({
+        _id: { $in: countryEntry.recommendations },
+        recType: "SYSTEM",
+      })
+        .toArray();
 
       if (systemRecs.length <= QUERY_QUANTITY * BASELINE_MULTIPLIER) {
         // Call LLM to get new recommendations
@@ -134,20 +136,17 @@ export default class CountryRecommendationConcept {
   async getCommunityRecs(
     countryName: string,
   ): Promise<{ recommendations: RecommendationEntry[] } | { error: string }> {
-    let countryEntry = await this.countryCollection.findOne({
-      _id: countryName,
-    });
-    if (!countryEntry) {
-      this.createCountry(countryName);
-      countryEntry = await this.countryCollection.findOne({
-        _id: countryName,
-      });
+    const countryEntry = await this.getCountryEntry(countryName);
+    if ("error" in countryEntry) {
+      return { error: countryEntry.error };
     }
 
     try {
-      const communityRecs = countryEntry!.recommendations.filter(
-        (rec) => rec.recType === "COMMUNITY",
-      );
+      const communityRecs = await this.recommendationCollection.find({
+        _id: { $in: countryEntry.recommendations },
+        recType: "COMMUNITY",
+      })
+        .toArray();
 
       if (communityRecs.length <= QUERY_QUANTITY) {
         return { recommendations: communityRecs };
@@ -176,16 +175,84 @@ export default class CountryRecommendationConcept {
     youtubeURL: string,
     genre?: string,
   ): Promise<{ recId: recId } | { error: string }> {
-    const recId = freshID() as recId;
+    try {
+      // Ensure country exists
+      const countryEntry = await this.getCountryEntry(countryName);
+      if ("error" in countryEntry) {
+        return { error: countryEntry.error };
+      }
 
-    return { recId };
+      const recDocs = await this.recommendationCollection
+        .find({ country: countryName })
+        .toArray();
+
+      // Check for exact duplicate among COMMUNITY recommendations
+      const existing = recDocs.find((rec) =>
+        rec.recType === "COMMUNITY" &&
+        rec.songTitle === songTitle &&
+        rec.artist === artist &&
+        rec.language === language &&
+        rec.youtubeURL === youtubeURL &&
+        (genre === undefined ? rec.genre === undefined : rec.genre === genre)
+      );
+
+      if (existing) {
+        return { recId: existing._id };
+      }
+
+      // Create and insert new COMMUNITY recommendation
+      const newId = freshID() as recId;
+      const newRec: RecommendationEntry = {
+        _id: newId,
+        country: countryName,
+        songTitle,
+        artist,
+        language,
+        youtubeURL,
+        recType: "COMMUNITY",
+        ...(genre !== undefined ? { genre } : {}),
+      };
+
+      await this.recommendationCollection.insertOne(newRec);
+      await this.countryCollection.updateOne(
+        { _id: countryName },
+        { $push: { recommendations: newId } },
+      );
+
+      return { recId: newId };
+    } catch (e) {
+      return { error: `Error adding community recommendation. ERROR: ${e}` };
+    }
   }
 
   /**
    * @requires recId exists, recId.type == "COMMUNITY"
    * @effects remove recId database
    */
-  async removeCommunityRec(recId: recId): Promise<Empty | { error: string }> {
-    return {};
+  async removeCommunityRec(recId: recId): Promise<void | { error: string }> {
+    try {
+      // 1. Lookup the recommendation by ID
+      const rec = await this.recommendationCollection.findOne({ _id: recId });
+
+      if (!rec) {
+        return { error: `Recommendation ${recId} not found.` };
+      }
+
+      // 2. Ensure it's a COMMUNITY recommendation
+      if (rec.recType !== "COMMUNITY") {
+        return { error: `Recommendation ${recId} is not COMMUNITY type.` };
+      }
+
+      // 3. Remove the recommendation document
+      await this.recommendationCollection.deleteOne({ _id: recId });
+
+      // 4. Remove reference from the country’s recommendations list
+      await this.countryCollection.updateOne(
+        { _id: rec.country },
+        { $pull: { recommendations: recId } },
+      );
+    } catch (e) {
+      return { error: `Error removing recommendation: ${e}` };
+    }
   }
 }
