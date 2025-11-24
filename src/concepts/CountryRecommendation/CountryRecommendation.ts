@@ -5,6 +5,9 @@ import { freshID } from "@utils/database.ts";
 // Declare collection prefix, use concept name
 const PREFIX = "CountryRecommendation" + ".";
 
+// Declare amount of recommendations to query for get calls, default 3
+const QUERY_QUANTITY = 3;
+
 // Internal entity types, represented as IDs
 type recId = ID;
 
@@ -19,7 +22,7 @@ interface RecommendationEntry {
   artist: string;
   language: string;
   youtubeURL: string;
-  recType: "system" | "community";
+  recType: "SYSTEM" | "COMMUNITY";
   genre?: string;
 }
 
@@ -40,7 +43,6 @@ export default class CountryRecommendationConcept {
   }
 
   /**
-   * **action** createCountry (countryName: String)
    * @effects if countryName doesn't already exist, create new Country with empty recs
    */
   async createCountry(countryName: string) {
@@ -61,24 +63,37 @@ export default class CountryRecommendationConcept {
   }
 
   /**
-   * **action** getNewRecs (countryName: String): (recs: ID[ ])
-   *
-   * @requires
-   * @effects
-   * @returns
+   * @requires countryName exists
+   * @effects call LLM for 3 new song recommendations from countryName and create new recommendation entries
+   * @returns list of 3 recIds
    */
   async getNewRecs(countryName: string): Promise<RecommendationEntry[]> {
     return [];
   }
 
+  /**
+   * @requires countryName exists
+   * @effects filter recs of type "SYSTEM" and choose QUERY_QUANTITY recs
+   * @returns randomly chosen rec IDs
+   */
   async getSystemRecs(countryName: string): Promise<RecommendationEntry[]> {
     return [];
   }
 
+  /**
+   * @requires countryName exists
+   * @effects filter recs of type "COMMUNITY" and choose QUERY_QUANTITY recs
+   * @returns randomly chosen rec IDs
+   */
   async getCommunityRecs(countryName: string): Promise<RecommendationEntry[]> {
     return [];
   }
 
+  /**
+   * @requires countryName exists
+   * @effects create new community Recommendation
+   * @returns recId
+   */
   async addCommunityRec(
     countryName: string,
     songTitle: string,
@@ -92,6 +107,10 @@ export default class CountryRecommendationConcept {
     return recId;
   }
 
+  /**
+   * @requires recId exists, recId.type == "COMMUNITY"
+   * @effects remove recId database
+   */
   async removeCommunityRec(recId: recId): Promise<void> {
   }
 }
