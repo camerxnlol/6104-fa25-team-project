@@ -1,0 +1,393 @@
+---
+timestamp: 'Mon Nov 24 2025 19:05:08 GMT-0500 (Eastern Standard Time)'
+parent: '[[../20251124_190508.0718aac5.md]]'
+content_id: 0299e03d8e5fc03172c1af931718c7356422fcc16b6134963b82e1c30611ed1d
+---
+
+# file: src/concepts/Reporting/ReportingConcept.test.ts
+
+```typescript
+import { assertEquals, assertExists } from "jsr:@std/assert";
+import { testDb } from "@utils/database.ts";
+import ReportingConcept from "./ReportingConcept.ts";
+import { ID } from "@utils/types.ts";
+
+Deno.test("Reporting Concept: InitializeObject Action", async (t) => {
+  await t.step(
+    "Operational Principle: A user can initialize a new object for reporting.",
+    async () => {
+      console.log(
+        "--- Test: Initialize a single new object successfully. ---",
+      );
+      const [db, client] = await testDb();
+      const reporting = new ReportingConcept(db);
+      const objectId = "post1" as ID;
+
+      console.log(`Action: InitializeObject with objectId: '${objectId}'`);
+      const result = await reporting.InitializeObject({ objectId });
+
+      console.log("Verifying effects...");
+      // 1. Check the return value
+      assertEquals(
+        result,
+        { objectId },
+        "The action should return the objectId on success.",
+      );
+
+      // 2. Check the database state directly
+      const reportInDb = await reporting.reports.findOne({ _id: objectId });
+      assertExists(
+        reportInDb,
+        "A report document should be created in the DB.",
+      );
+      assertEquals(
+        reportInDb,
+        {
+          _id: objectId,
+          count: 0,
+          reporters: [],
+        },
+        "The created report should have count=0 and an empty reporters set.",
+      );
+      console.log("Success: Object initialized with correct default state.");
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "Scenario: Attempting to initialize an object that already exists.",
+    async () => {
+      console.log(
+        "\n--- Test: Fail to initialize a duplicate object. ---",
+      );
+      const [db, client] = await testDb();
+      const reporting = new ReportingConcept(db);
+      const objectId = "post-abc" as ID;
+
+      console.log(
+        `Action 1: InitializeObject with objectId: '${objectId}' (should succeed).`,
+      );
+      await reporting.InitializeObject({ objectId });
+
+      console.log(
+        `Action 2: InitializeObject with the same objectId: '${objectId}' (should fail).`,
+      );
+      const result = await reporting.InitializeObject({ objectId });
+
+      console.log("Verifying 'requires' clause...");
+      // 1. Check that the result is an error object
+      assertExists(
+        (result as { error: string }).error,
+        "The action should return an error when the object already exists.",
+      );
+      assertEquals(
+        (result as { error: string }).error,
+        `Report for objectId '${objectId}' already exists.`,
+      );
+
+      // 2. Check that the database state is unchanged by the failed action
+      const reportsInDb = await reporting.reports.find({ _id: objectId })
+        .toArray();
+      assertEquals(
+        reportsInDb.length,
+        1,
+        "There should still be only one report for this objectId in the DB.",
+      );
+      console.log(
+        "Success: Requirement fulfilled; duplicate initialization prevented.",
+      );
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "Scenario: Initializing multiple, distinct objects.",
+    async () => {
+      console.log(
+        "\n--- Test: Successfully initialize several different objects. ---",
+      );
+      const [db, client] = await testDb();
+      const reporting = new ReportingConcept(db);
+      const objectId1 = "comment-123" as ID;
+      const objectId2 = "user-profile-456" as ID;
+
+      console.log(`Action 1: InitializeObject with objectId: '${objectId1}'`);
+      const result1 = await reporting.InitializeObject({ objectId: objectId1 });
+      console.log(`Action 2: InitializeObject with objectId: '${objectId2}'`);
+      const result2 = await reporting.InitializeObject({ objectId: objectId2 });
+
+      console.log("Verifying effects for both objects...");
+      // 1. Check return values
+      assertEquals(result1, { objectId: objectId1 });
+      assertEquals(result2, { objectId: objectId2 });
+
+      // 2. Check total count in collection
+      const totalCount = await reporting.reports.countDocuments();
+      assertEquals(
+        totalCount,
+        2,
+        "The total number of reports in the collection should be 2.",
+      );
+
+      // 3. Verify the state of the first object
+      const report1InDb = await reporting.reports.findOne({ _id: objectId1 });
+      assertExists(report1InDb);
+      assertEquals(report1InDb.count, 0);
+      assertEquals(report1InDb.reporters, []);
+
+      // 4. Verify the state of the second object
+      const report2InDb = await reporting.reports.findOne({ _id: objectId2 });
+      assertExists(report2InDb);
+      assertEquals(report2InDb.count, 0);
+      assertEquals(report2InDb.reporters, []);
+
+      console.log(
+        "Success: Both objects initialized correctly and independently.",
+      );
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "Scenario: Using an empty string as an objectId.",
+    async () => {
+      console.log(
+        "\n--- Test: Attempting to initialize an object with an empty string ID. ---",
+      );
+      const [db, client] = await testDb();
+      const reporting = new ReportingConcept(db);
+      const objectId = "" as ID; // This is a non-standard but possible case
+
+      console.log(`Action: InitializeObject with an empty string objectId.`);
+      const result = await reporting.InitializeObject({ objectId });
+
+      console.log("Verifying effects...");
+      assertEquals(
+        result,
+        { objectId },
+        "The action should succeed even with an empty string ID.",
+      );
+
+      const reportInDb = await reporting.reports.findOne({ _id: objectId });
+      assertExists(
+        reportInDb,
+        "A report document for the empty string ID should exist.",
+      );
+      assertEquals(
+        reportInDb.count,
+        0,
+        "The report's count should be initialized to 0.",
+      );
+      console.log(
+        "Success: Concept correctly handles an empty string as a valid, unique ID.",
+      );
+
+      await client.close();
+    },
+  );
+});
+
+Deno.test("Reporting Concept: Operational Principle Trace", async (t) => {
+  await t.step(
+    "A user initializes an object, and multiple users report it.",
+    async () => {
+      console.log("\n--- Trace: Standard operational flow. ---");
+      const [db, client] = await testDb();
+      const reporting = new ReportingConcept(db);
+      const objectId = "article-101" as ID;
+      const user1 = "user-Alice" as ID;
+      const user2 = "user-Bob" as ID;
+
+      console.log(
+        `1. Action: InitializeObject for objectId '${objectId}'.`,
+      );
+      const initResult = await reporting.InitializeObject({ objectId });
+      assertEquals(initResult, { objectId });
+
+      console.log(`2. Action: User '${user1}' reports object '${objectId}'.`);
+      const report1Result = await reporting.Report({ objectId, userId: user1 });
+      assertEquals(report1Result, {});
+
+      console.log("Verifying state after first report...");
+      let reportInDb = await reporting.reports.findOne({ _id: objectId });
+      assertExists(reportInDb);
+      assertEquals(reportInDb.count, 1);
+      assertEquals(reportInDb.reporters, [user1]);
+      console.log("State is correct: count is 1, reporter list is ['user-Alice'].");
+
+      console.log(`3. Action: User '${user2}' reports object '${objectId}'.`);
+      const report2Result = await reporting.Report({ objectId, userId: user2 });
+      assertEquals(report2Result, {});
+
+      console.log("Verifying state after second report...");
+      reportInDb = await reporting.reports.findOne({ _id: objectId });
+      assertExists(reportInDb);
+      assertEquals(reportInDb.count, 2);
+      assertEquals(reportInDb.reporters.length, 2);
+      // Using Set for order-agnostic comparison
+      assertEquals(new Set(reportInDb.reporters), new Set([user1, user2]));
+      console.log(
+        "State is correct: count is 2, reporters list contains both users.",
+      );
+      console.log("Success: Operational principle demonstrated.");
+
+      await client.close();
+    },
+  );
+});
+
+Deno.test("Reporting Concept: Report Action Scenarios", async (t) => {
+  await t.step(
+    "Scenario: Attempting to report an object that has not been initialized.",
+    async () => {
+      console.log("\n--- Test: Fail to report a non-existent object. ---");
+      const [db, client] = await testDb();
+      const reporting = new ReportingConcept(db);
+      const objectId = "post-dne" as ID;
+      const userId = "user-fail" as ID;
+
+      console.log(
+        `Action: User '${userId}' attempts to report uninitialized object '${objectId}'.`,
+      );
+      const result = await reporting.Report({ objectId, userId });
+
+      console.log("Verifying 'requires' clause...");
+      assertExists((result as { error: string }).error);
+      assertEquals(
+        (result as { error: string }).error,
+        `Report for objectId '${objectId}' does not exist.`,
+      );
+
+      const count = await reporting.reports.countDocuments();
+      assertEquals(
+        count,
+        0,
+        "No report document should have been created.",
+      );
+      console.log(
+        "Success: Requirement fulfilled; cannot report a non-existent object.",
+      );
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "Scenario: A user attempts to report the same object multiple times.",
+    async () => {
+      console.log(
+        "\n--- Test: A user reports an object, then fails on the second attempt. ---",
+      );
+      const [db, client] = await testDb();
+      const reporting = new ReportingConcept(db);
+      const objectId = "post-multi-report" as ID;
+      const userId = "user-x" as ID;
+
+      console.log(`Action 1: InitializeObject for '${objectId}'.`);
+      await reporting.InitializeObject({ objectId });
+
+      console.log(
+        `Action 2: User '${userId}' reports '${objectId}' for the first time (should succeed).`,
+      );
+      const firstReport = await reporting.Report({ objectId, userId });
+      assertEquals(
+        firstReport,
+        {},
+        "The first report should be successful.",
+      );
+
+      console.log("Verifying state after first report...");
+      let reportInDb = await reporting.reports.findOne({ _id: objectId });
+      assertEquals(reportInDb?.count, 1);
+      assertEquals(reportInDb?.reporters, [userId]);
+
+      console.log(
+        `Action 3: User '${userId}' reports '${objectId}' again (should fail).`,
+      );
+      const secondReport = await reporting.Report({ objectId, userId });
+
+      console.log("Verifying 'requires' clause for second report...");
+      assertExists((secondReport as { error: string }).error);
+      assertEquals(
+        (secondReport as { error: string }).error,
+        `User '${userId}' has already reported objectId '${objectId}'.`,
+      );
+
+      console.log("Verifying state is unchanged by the failed report...");
+      reportInDb = await reporting.reports.findOne({ _id: objectId });
+      assertEquals(
+        reportInDb?.count,
+        1,
+        "Count should remain 1 after the failed report.",
+      );
+      assertEquals(
+        reportInDb?.reporters.length,
+        1,
+        "Reporters set should still contain only one user.",
+      );
+      console.log(
+        "Success: Requirement fulfilled; duplicate reports from the same user are prevented.",
+      );
+
+      await client.close();
+    },
+  );
+
+  await t.step(
+    "Scenario: Multiple users report different objects independently.",
+    async () => {
+      console.log(
+        "\n--- Test: Reports on different objects do not interfere with each other. ---",
+      );
+      const [db, client] = await testDb();
+      const reporting = new ReportingConcept(db);
+
+      const objectA = "post-a" as ID;
+      const objectB = "photo-b" as ID;
+      const userA = "user-a" as ID;
+      const userB = "user-b" as ID;
+      const userC = "user-c" as ID;
+
+      console.log(`Action 1: InitializeObject for '${objectA}' and '${objectB}'.`);
+      await reporting.InitializeObject({ objectId: objectA });
+      await reporting.InitializeObject({ objectId: objectB });
+
+      console.log(`Action 2: User '${userA}' reports '${objectA}'.`);
+      await reporting.Report({ objectId: objectA, userId: userA });
+
+      console.log(`Action 3: User '${userB}' reports '${objectB}'.`);
+      await reporting.Report({ objectId: objectB, userId: userB });
+
+      console.log(`Action 4: User '${userC}' also reports '${objectA}'.`);
+      await reporting.Report({ objectId: objectA, userId: userC });
+
+      console.log("Verifying final state of all objects...");
+      const reportA = await reporting.reports.findOne({ _id: objectA });
+      const reportB = await reporting.reports.findOne({ _id: objectB });
+
+      assertExists(reportA, `Report for ${objectA} should exist.`);
+      assertEquals(reportA.count, 2);
+      assertEquals(new Set(reportA.reporters), new Set([userA, userC]));
+      console.log(
+        `State for '${objectA}' is correct: count=2, reporters=['${userA}', '${userC}'].`,
+      );
+
+      assertExists(reportB, `Report for ${objectB} should exist.`);
+      assertEquals(reportB.count, 1);
+      assertEquals(reportB.reporters, [userB]);
+      console.log(
+        `State for '${objectB}' is correct: count=1, reporter='${userB}'.`,
+      );
+
+      console.log(
+        "Success: Reports for different objects are tracked independently.",
+      );
+
+      await client.close();
+    },
+  );
+});
+```
