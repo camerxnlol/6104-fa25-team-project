@@ -18,7 +18,7 @@ const LLM_CALL_SCALE = 20;
 // Internal entity types, represented as IDs
 type recId = ID;
 
-interface CountryEntry {
+interface Country {
   _id: string;
   recommendations: recId[];
 }
@@ -31,7 +31,7 @@ interface RecommendationEntry {
   language: string;
   youtubeURL: string;
   recType: "SYSTEM" | "COMMUNITY";
-  genre?: string;
+  genre: string;
 }
 
 /**
@@ -40,7 +40,7 @@ interface RecommendationEntry {
  * @principle maintain, update, and deliver curated (system) and user-added (community) song recommendations for each country, fetching new recommendations from an LLM when needed.
  */
 export default class CountryRecommendationConcept {
-  private readonly countryCollection: Collection<CountryEntry>;
+  private readonly countryCollection: Collection<Country>;
   private readonly recommendationCollection: Collection<RecommendationEntry>;
   private llm: GeminiLLM;
 
@@ -56,11 +56,11 @@ export default class CountryRecommendationConcept {
    * @effects if countryName doesn't already exist, create new Country with empty recs
    */
   private async getCountryEntry(
-    countryName: string,
-  ): Promise<CountryEntry | { error: string }> {
+    { countryName }: { countryName: string },
+  ): Promise<{ country: Country } | { error: string }> {
     const existing = await this.countryCollection.findOne({ _id: countryName });
     if (existing) {
-      return existing;
+      return { country: existing };
     }
 
     await this.countryCollection.insertOne({
@@ -68,16 +68,16 @@ export default class CountryRecommendationConcept {
       recommendations: [],
     });
 
-    const newCountryEntry = await this.countryCollection.findOne({
+    const newCountry = await this.countryCollection.findOne({
       _id: countryName,
     });
-    if (!newCountryEntry) return { error: "Failed to create country." };
+    if (!newCountry) return { error: "Failed to create country." };
 
     console.log(
       `CREATED new entry for country: ${countryName}`,
     );
 
-    return newCountryEntry;
+    return { country: newCountry };
   }
 
   /**
@@ -86,9 +86,9 @@ export default class CountryRecommendationConcept {
    * @returns list of recIds
    */
   async getNewRecs(
-    countryName: string,
+    { countryName }: { countryName: string },
   ): Promise<{ recommendations: RecommendationEntry[] } | { error: string }> {
-    // a JSON array of objects with keys: songTitle, artist, language, youtubeURL, genre?
+    // a JSON array of objects with keys: songTitle, artist, language, youtubeURL, genre
     const jsonResponse = await this.llmFetch(countryName, QUERY_QUANTITY);
 
     let parsed: {
@@ -96,7 +96,7 @@ export default class CountryRecommendationConcept {
       artist: string;
       language: string;
       youtubeURL: string;
-      genre?: string;
+      genre: string;
     }[];
 
     try {
@@ -159,11 +159,11 @@ export default class CountryRecommendationConcept {
   /**
    * Helper to execute LLM request and parse response.
    */
-  public async llmFetch(
+  private async llmFetch(
     countryName: string,
     amount: number,
   ): Promise<string> {
-    const prompt = this.createPrompt(countryName, amount);
+    const prompt = this.createPrompt(countryName, amount, "");
     // console.log(prompt);
 
     try {
@@ -189,19 +189,19 @@ export default class CountryRecommendationConcept {
   /**
    * Create the prompt for Gemini with hardwired preferences
    */
-  public createPrompt(
+  private createPrompt(
     countryName: string,
     amount: number,
-    genre?: string,
+    genre: string,
   ): string {
-    return genre
-      ? `give me ${amount} underground/small music artists in ${countryName} with the genre ${genre}. 
-    Provide one song from each artist. For each song, include the song title, artist, 
-    language in which the song is sung, and YouTube URL to the official MV. Format the response as 
+    return (genre !== "")
+      ? `give me ${amount} underground/small music artists in ${countryName} with the genre ${genre}.
+    Provide one song from each artist. For each song, include the song title, artist,
+    language in which the song is sung, and YouTube URL to the official MV. Format the response as
     a JSON array of objects with keys: songTitle, artist, language, youtubeURL.`
-      : `give me ${amount} underground/small music artists in ${countryName}. 
-    Provide one song from each artist. For each song, include the song title, artist, 
-    language in which the song is sung, YouTube URL to the official MV, and the genre. Format the response as 
+      : `give me ${amount} underground/small music artists in ${countryName}.
+    Provide one song from each artist. For each song, include the song title, artist,
+    language in which the song is sung, YouTube URL to the official MV, and the genre. Format the response as
     a JSON array of objects with keys: songTitle, artist, language, youtubeURL, genre.`;
   }
 
@@ -211,16 +211,16 @@ export default class CountryRecommendationConcept {
    * @returns randomly chosen rec IDs
    */
   async getSystemRecs(
-    countryName: string,
+    { countryName }: { countryName: string },
   ): Promise<{ recommendations: RecommendationEntry[] } | { error: string }> {
-    const countryEntry = await this.getCountryEntry(countryName);
-    if ("error" in countryEntry) {
-      return { error: countryEntry.error };
+    const country = await this.getCountryEntry({ countryName });
+    if ("error" in country) {
+      return { error: country.error };
     }
 
     try {
       const systemRecs = await this.recommendationCollection.find({
-        _id: { $in: countryEntry.recommendations },
+        _id: { $in: country.country.recommendations },
         recType: "SYSTEM",
       })
         .toArray();
@@ -230,7 +230,7 @@ export default class CountryRecommendationConcept {
         console.log(
           `Not enough SYSTEM recommendations for ${countryName} (${systemRecs.length} found). Calling LLM for new recommendations...`,
         );
-        return this.getNewRecs(countryName);
+        return this.getNewRecs({ countryName });
       }
 
       // Randomize when to pick recommendations from stored recommendations or call LLM
@@ -242,7 +242,7 @@ export default class CountryRecommendationConcept {
             p.toFixed(3)
           }).`,
         );
-        return this.getNewRecs(countryName);
+        return this.getNewRecs({ countryName });
       } else {
         console.log(
           `Using stored SYSTEM recommendations for ${countryName} (p=${
@@ -265,11 +265,11 @@ export default class CountryRecommendationConcept {
    * @returns randomly chosen rec IDs
    */
   async getCommunityRecs(
-    countryName: string,
+    { countryName }: { countryName: string },
   ): Promise<{ recommendations: RecommendationEntry[] } | { error: string }> {
-    const countryEntry = await this.getCountryEntry(countryName);
-    if ("error" in countryEntry) {
-      return { error: countryEntry.error };
+    const country = await this.getCountryEntry({ countryName });
+    if ("error" in country) {
+      return { error: country.error };
     }
 
     try {
@@ -277,7 +277,7 @@ export default class CountryRecommendationConcept {
         `Fetching COMMUNITY recommendations for ${countryName}...`,
       );
       const communityRecs = await this.recommendationCollection.find({
-        _id: { $in: countryEntry.recommendations },
+        _id: { $in: country.country.recommendations },
         recType: "COMMUNITY",
       })
         .toArray();
@@ -302,18 +302,20 @@ export default class CountryRecommendationConcept {
    * @returns recId
    */
   async addCommunityRec(
-    countryName: string,
-    songTitle: string,
-    artist: string,
-    language: string,
-    youtubeURL: string,
-    genre?: string,
+    { countryName, songTitle, artist, language, youtubeURL, genre }: {
+      countryName: string;
+      songTitle: string;
+      artist: string;
+      language: string;
+      youtubeURL: string;
+      genre: string;
+    },
   ): Promise<{ recId: recId } | { error: string }> {
     try {
       // Ensure country exists
-      const countryEntry = await this.getCountryEntry(countryName);
-      if ("error" in countryEntry) {
-        return { error: countryEntry.error };
+      const country = await this.getCountryEntry({ countryName });
+      if ("error" in country) {
+        return { error: country.error };
       }
 
       const recDocs = await this.recommendationCollection
@@ -344,7 +346,7 @@ export default class CountryRecommendationConcept {
         language,
         youtubeURL,
         recType: "COMMUNITY",
-        ...(genre !== undefined ? { genre } : {}),
+        genre,
       };
 
       await this.recommendationCollection.insertOne(newRec);
@@ -366,7 +368,9 @@ export default class CountryRecommendationConcept {
    * @requires recId exists, recId.type == "COMMUNITY"
    * @effects remove recId database
    */
-  async removeCommunityRec(recId: recId): Promise<void | { error: string }> {
+  async removeCommunityRec(
+    { recId }: { recId: recId },
+  ): Promise<void | { error: string }> {
     try {
       // 1. Lookup the recommendation by ID
       const rec = await this.recommendationCollection.findOne({ _id: recId });
@@ -401,7 +405,7 @@ export default class CountryRecommendationConcept {
    * @returns counts and optional lists of recommendations for debugging/inspection
    */
   async _getCountryStatus(
-    countryName: string,
+    { countryName }: { countryName: string },
   ): Promise<
     | {
       country: string;
@@ -414,13 +418,12 @@ export default class CountryRecommendationConcept {
     }
     | { error: string }
   > {
-    const countryEntry = await this.getCountryEntry(countryName);
-    if ("error" in countryEntry) return { error: countryEntry.error };
+    const country = await this.getCountryEntry({ countryName });
+    if ("error" in country) return { error: country.error };
 
     try {
       // All recIds linked to this country
-      const recIds = countryEntry.recommendations;
-
+      const recIds = country.country.recommendations;
       if (recIds.length === 0) {
         return {
           country: countryName,

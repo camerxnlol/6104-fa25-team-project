@@ -17,12 +17,13 @@
     - a countryName String
     - a songTitle String
     - an artist String
+    - a genre String
     - a language String
     - a youtubeURL String
     - a type String (“System” | “Community”)
     - a genre String?
 - **actions**:
-  - `getCountryEntry (countryName: String)`
+  - `getCountryEntry (countryName: String): (country: Country)`
     - **effects**: if name not in Countries, create new Country with empty recs
   - `getNewRecs (countryName: String): (recs: ID[ ])`
     - **requires**: country exists
@@ -41,7 +42,7 @@
   - `getCommunityRecs (countryName: String): (recs: ID[ ])`
     - **requires**: country exists
     - **effects**: filter recs of type “Community”, return 3 randomly chosen IDs (or less if there are <3 community recs)
-  - `addCommunityRec (countryName, title, artist, genre?, language, url): (recId: ID)`
+  - `addCommunityRec (countryName, title, artist, genre, language, url): (recId: ID)`
     - **requires**: country exists
     - **effects**:
       - create new Rec with new recId, type="Community", and remaining data as
