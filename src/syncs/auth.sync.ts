@@ -11,12 +11,25 @@ export const RegisterRequest: Sync = ({ request, username, password }) => ({
   then: actions([UserAuthentication.register, { username, password }]),
 });
 
+// On successful registration, create a session and respond with both user and session.
 export const RegisterResponse: Sync = ({ request, user }) => ({
   when: actions(
     [Requesting.request, { path: "/UserAuthentication/register" }, { request }],
     [UserAuthentication.register, {}, { user }],
   ),
-  then: actions([Requesting.respond, { request, user }]),
+  then: actions(
+    [Sessioning.create, { user }],
+  ),
+});
+
+// Once session is created, send the response
+export const RegisterRespondWithSession: Sync = ({ request, user, session }) => ({
+  when: actions(
+    [Requesting.request, { path: "/UserAuthentication/register" }, { request }],
+    [UserAuthentication.register, {}, { user }],
+    [Sessioning.create, { user }, { session }],
+  ),
+  then: actions([Requesting.respond, { request, user, session }]),
 });
 
 export const RegisterResponseError: Sync = ({ request, error }) => ({
@@ -37,14 +50,19 @@ export const LoginRequest: Sync = ({ request, username, password }) => ({
   then: actions([UserAuthentication.login, { username, password }]),
 });
 
-// On successful login, create a new session for the user.
-export const LoginSuccessCreatesSession: Sync = ({ user }) => ({
-  when: actions([UserAuthentication.login, {}, { user }]),
-  then: actions([Sessioning.create, { user }]),
+// On successful login, create a session.
+export const LoginResponse: Sync = ({ request, user }) => ({
+  when: actions(
+    [Requesting.request, { path: "/UserAuthentication/login" }, { request }],
+    [UserAuthentication.login, {}, { user }],
+  ),
+  then: actions(
+    [Sessioning.create, { user }],
+  ),
 });
 
-// Once the session is created, respond to the original login request with the user and session info.
-export const LoginResponse: Sync = ({ request, user, session }) => ({
+// Once session is created, send the response
+export const LoginRespondWithSession: Sync = ({ request, user, session }) => ({
   when: actions(
     [Requesting.request, { path: "/UserAuthentication/login" }, { request }],
     [UserAuthentication.login, {}, { user }],
