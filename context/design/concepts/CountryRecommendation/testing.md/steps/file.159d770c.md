@@ -1,3 +1,12 @@
+---
+timestamp: 'Tue Nov 25 2025 22:15:21 GMT-0500 (Eastern Standard Time)'
+parent: '[[../20251125_221521.ca3d14e5.md]]'
+content_id: 159d770ca87b1b354ef2d3ec66156ea96ea10cc6f454f0387b1dc5b0b9cf06ab
+---
+
+# file: src/concepts/CountryRecommendation/CountryRecommendationConcept.test.ts
+
+```typescript
 import { assertEquals, assertExists, assertNotEquals } from "jsr:@std/assert";
 import { testDb } from "@utils/database.ts";
 import { ID } from "@utils/types.ts";
@@ -17,18 +26,10 @@ Deno.test("Principle: User views countries with and without stored recommendatio
   const countryB = "Netherlands";
   try {
     // 1. User views country A that has no stored recommendations (should call LLM)
-    const countryABefore = await countryConcept._getCountryStatus({
-      countryName: countryA,
-    });
-    const countryASystem = await countryConcept.getSystemRecs({
-      countryName: countryA,
-    });
-    const countryACommunity = await countryConcept.getCommunityRecs({
-      countryName: countryA,
-    });
-    const countryAAfter = await countryConcept._getCountryStatus({
-      countryName: countryA,
-    });
+    const countryABefore = await countryConcept._getCountryStatus(countryA);
+    const countryASystem = await countryConcept.getSystemRecs(countryA);
+    const countryACommunity = await countryConcept.getCommunityRecs(countryA);
+    const countryAAfter = await countryConcept._getCountryStatus(countryA);
 
     // Verify that LLM call was made to generate recommendations for CountryA
     if ("error" in countryABefore) {
@@ -52,22 +53,18 @@ Deno.test("Principle: User views countries with and without stored recommendatio
 
     // 2. User adds a community recommendation for country A
     const userRec = await countryConcept.addCommunityRec(
-      {
-        countryName: countryA,
-        songTitle: "Community Song A",
-        artist: "Community Artist A",
-        language: "Mandarin",
-        youtubeURL: "https://youtube.com/communityA",
-        genre: "Pop",
-      },
+      countryA,
+      "Community Song A",
+      "Community Artist A",
+      "Mandarin",
+      "https://youtube.com/communityA",
+      "Pop",
     );
     if ("error" in userRec) {
       throw new Error(`Unexpected error: ${userRec.error}`);
     }
     // Validate community recs now include the new entry
-    const afterAddition = await countryConcept.getCommunityRecs({
-      countryName: countryA,
-    });
+    const afterAddition = await countryConcept.getCommunityRecs(countryA);
     if ("error" in afterAddition) {
       throw new Error(`Unexpected error: ${afterAddition.error}`);
     }
@@ -101,9 +98,7 @@ Deno.test("Principle: User views countries with and without stored recommendatio
       recommendations: countryBRecs,
     });
 
-    const countryBResult = await countryConcept.getSystemRecs({
-      countryName: countryB,
-    });
+    const countryBResult = await countryConcept.getSystemRecs(countryB);
     // Due to randomization, we might get an LLM call or stored recs
     // verify success
     if ("error" in countryBResult) {
@@ -111,18 +106,10 @@ Deno.test("Principle: User views countries with and without stored recommendatio
     }
 
     // 4. User goes back to view country A (new recs, should call LLM again because recs have not reached baseline)
-    const countryABefore2 = await countryConcept._getCountryStatus({
-      countryName: countryA,
-    });
-    const countryASystem2 = await countryConcept.getSystemRecs({
-      countryName: countryA,
-    });
-    const countryACommunity2 = await countryConcept.getCommunityRecs({
-      countryName: countryA,
-    });
-    const countryAAfter2 = await countryConcept._getCountryStatus({
-      countryName: countryA,
-    });
+    const countryABefore2 = await countryConcept._getCountryStatus(countryA);
+    const countryASystem2 = await countryConcept.getSystemRecs(countryA);
+    const countryACommunity2 = await countryConcept.getCommunityRecs(countryA);
+    const countryAAfter2 = await countryConcept._getCountryStatus(countryA);
 
     // Verify that LLM call was made to generate recommendations for CountryA
     if ("error" in countryABefore2) {
@@ -192,9 +179,7 @@ Deno.test("getCommunityRecs: with stored recs greater than QUERY_QUANTITY", asyn
       recommendations: recIds,
     });
 
-    const result = await countryConcept.getCommunityRecs({
-      countryName: countryName,
-    });
+    const result = await countryConcept.getCommunityRecs(countryName);
     assertNotEquals(
       "error" in result,
       true,
@@ -226,14 +211,12 @@ Deno.test("addCommunityRec: with exact duplicate (returns existing recId)", asyn
 
     // Add the first recommendation
     const result1 = await countryConcept.addCommunityRec(
-      {
-        countryName,
-        songTitle,
-        artist,
-        language,
-        youtubeURL,
-        genre,
-      },
+      countryName,
+      songTitle,
+      artist,
+      language,
+      youtubeURL,
+      genre,
     );
     assertNotEquals("error" in result1, true, "First add should succeed.");
     assertExists((result1 as { recId: ID }).recId, "Should return a recId.");
@@ -242,7 +225,12 @@ Deno.test("addCommunityRec: with exact duplicate (returns existing recId)", asyn
 
     // Try to add the exact same recommendation again
     const result2 = await countryConcept.addCommunityRec(
-      { countryName, songTitle, artist, language, youtubeURL, genre },
+      countryName,
+      songTitle,
+      artist,
+      language,
+      youtubeURL,
+      genre,
     );
     assertNotEquals("error" in result2, true, "Duplicate add should succeed.");
     assertEquals(
@@ -264,20 +252,17 @@ Deno.test("removeCommunityRec: with valid COMMUNITY rec (successfully removes)",
 
     // First, add a community recommendation
     const addResult = await countryConcept.addCommunityRec(
-      {
-        countryName,
-        songTitle: "Song to Remove",
-        artist: "Artist",
-        language: "English",
-        youtubeURL: "https://youtube.com/remove",
-        genre: "Pop",
-      },
+      countryName,
+      "Song to Remove",
+      "Artist",
+      "English",
+      "https://youtube.com/remove",
     );
     assertNotEquals("error" in addResult, true, "Should successfully add rec.");
     const recId = (addResult as { recId: ID }).recId;
 
     // Now remove it
-    const removeResult = await countryConcept.removeCommunityRec({ recId });
+    const removeResult = await countryConcept.removeCommunityRec(recId);
     assertEquals(
       removeResult,
       undefined,
@@ -300,9 +285,7 @@ Deno.test("removeCommunityRec: with non-existent recId (returns error)", async (
   try {
     const fakeRecId = "nonexistent:123" as ID;
 
-    const result = await countryConcept.removeCommunityRec({
-      recId: fakeRecId,
-    });
+    const result = await countryConcept.removeCommunityRec(fakeRecId);
     assertEquals(
       "error" in result!,
       true,
@@ -338,9 +321,7 @@ Deno.test("removeCommunityRec: with SYSTEM rec (returns error, cannot remove SYS
     } as unknown as Record<string, unknown>);
 
     // Try to remove the SYSTEM recommendation
-    const result = await countryConcept.removeCommunityRec({
-      recId: systemRecId,
-    });
+    const result = await countryConcept.removeCommunityRec(systemRecId);
     assertEquals(
       "error" in result!,
       true,
@@ -360,3 +341,5 @@ Deno.test("removeCommunityRec: with SYSTEM rec (returns error, cannot remove SYS
     await client.close();
   }
 });
+
+```

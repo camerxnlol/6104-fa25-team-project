@@ -21,7 +21,6 @@
     - a language String
     - a youtubeURL String
     - a type String (“System” | “Community”)
-    - a genre String?
 - **actions**:
   - `getCountryEntry (countryName: String): (country: Country)`
     - **effects**: if name not in Countries, create new Country with empty recs

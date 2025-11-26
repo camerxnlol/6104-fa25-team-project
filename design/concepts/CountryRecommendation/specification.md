@@ -1,6 +1,5 @@
-## CountryRecommendation
 
-### concept: CountryRecommendation
+# concept: CountryRecommendation
 
 - **purpose**: provide Users with song recommendations from a specific country
 - **principle**: maintain, update, and deliver curated (system) and user-added
@@ -12,6 +11,7 @@
     - a set of Recs
   - a set of Recs with
     - a recId ID
+    - a countryName String
     - a songTitle String
     - an artist String
     - a genre String
@@ -19,7 +19,7 @@
     - a youtubeURL String
     - a type String (“System” | “Community”)
 - **actions**:
-  - `createCountry (countryName: String): (country: Country)`
+  - `getCountryEntry (countryName: String): (country: Country)`
     - **effects**: if name not in Countries, create new Country with empty recs
   - `getNewRecs (countryName: String): (recs: ID[ ])`
     - **requires**: country exists
@@ -34,10 +34,10 @@
   - `getSystemRecs (countryName: String): (recs: ID[ ])`
     - **requires**: country exists
     - **effects**: filter recs of type “System”, return 3 randomly chosen rec
-      IDs
+      IDs, call llm to get new recs depending on heuristic
   - `getCommunityRecs (countryName: String): (recs: ID[ ])`
     - **requires**: country exists
-    - **effects**: filter recs of type “Community”, return 3 randomly chosen IDs
+    - **effects**: filter recs of type “Community”, return 3 randomly chosen IDs (or less if there are <3 community recs)
   - `addCommunityRec (countryName, title, artist, genre, language, url): (recId: ID)`
     - **requires**: country exists
     - **effects**:
