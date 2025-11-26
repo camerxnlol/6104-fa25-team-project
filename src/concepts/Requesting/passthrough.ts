@@ -85,4 +85,5 @@ export const exclusions: Array<string> = [
 
   "/api/UserAuthentication/register",
   "/api/UserAuthentication/login",
+  "/api/UserAuthentication/logout",
 ];
