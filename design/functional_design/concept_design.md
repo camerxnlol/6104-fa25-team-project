@@ -140,6 +140,9 @@
   - `_getReportCount (objectId: string): (count: Number)`
     - **requires**: a report for objectId exists
     - **effects**: returns the count of the report
+  - `_getReporters (objectId: string): (reporters: a set of User)`
+    - **requires**: a report for objectId exists
+    - **effects**: returns the reporters of the objectId
 
 ## Passport
 
