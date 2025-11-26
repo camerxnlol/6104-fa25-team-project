@@ -1,3 +1,12 @@
+---
+timestamp: 'Tue Nov 25 2025 20:51:36 GMT-0500 (Eastern Standard Time)'
+parent: '[[../20251125_205136.957eecdb.md]]'
+content_id: cb892b6b846af10c173b681f10102d1a432a6f9d5235443c9597f7475acda9af
+---
+
+# file: src/concepts/Requesting/passthrough.ts
+
+```typescript
 /**
  * The Requesting concept exposes passthrough routes by default,
  * which allow POSTs to the route:
@@ -86,3 +95,5 @@ export const exclusions: Array<string> = [
   "/api/UserAuthentication/register",
   "/api/UserAuthentication/login",
 ];
+
+```
