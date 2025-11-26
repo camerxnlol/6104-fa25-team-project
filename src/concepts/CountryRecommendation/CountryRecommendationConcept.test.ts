@@ -2,9 +2,10 @@ import { assertEquals, assertExists, assertNotEquals } from "jsr:@std/assert";
 import { testDb } from "@utils/database.ts";
 import { ID } from "@utils/types.ts";
 import CountryRecommendationConcept from "./CountryRecommendationConcept.ts";
-
-const TEST_QUERY_QUANTITY = 3;
-const TEST_BASELINE_MULTIPLIER = 3;
+import {
+  BASELINE_MULTIPLIER,
+  QUERY_QUANTITY,
+} from "./CountryRecommendationConcept.ts";
 
 Deno.test("Principle: User views countries with and without stored recommendations", async () => {
   const [db, client] = await testDb();
@@ -12,19 +13,64 @@ Deno.test("Principle: User views countries with and without stored recommendatio
   const countryCollection = "CountryRecommendation.countries";
   const recommendationCollection = "CountryRecommendation.recommendations";
 
+  const countryA = "Taiwan";
+  const countryB = "Netherlands";
   try {
     // 1. User views country A that has no stored recommendations (should call LLM)
-    const countryAResult = await countryConcept.getSystemRecs("CountryA");
+    const countryABefore = await countryConcept._getCountryStatus(countryA);
+    const countryASystem = await countryConcept.getSystemRecs(countryA);
+    const countryACommunity = await countryConcept.getCommunityRecs(countryA);
+    const countryAAfter = await countryConcept._getCountryStatus(countryA);
 
-    // TODO: Verify that LLM call was made
+    // Verify that LLM call was made to generate recommendations for CountryA
+    if ("error" in countryABefore) {
+      throw new Error(`Unexpected error: ${countryABefore.error}`);
+    }
+    assertEquals(countryABefore.systemCount, 0);
+    assertEquals(countryABefore.communityCount, 0);
 
-    // 2. User views country B with stored recommendations
+    if ("error" in countryAAfter) {
+      throw new Error(`Unexpected error: ${countryAAfter.error}`);
+    }
+    assertEquals(countryAAfter.systemCount, QUERY_QUANTITY);
+    assertEquals(countryAAfter.communityCount, 0);
+
+    if ("error" in countryASystem) {
+      throw new Error(`Unexpected error: ${countryASystem.error}`);
+    }
+    if ("error" in countryACommunity) {
+      throw new Error(`Unexpected error: ${countryACommunity.error}`);
+    }
+
+    // 2. User adds a community recommendation for country A
+    const userRec = await countryConcept.addCommunityRec(
+      countryA,
+      "Community Song A",
+      "Community Artist A",
+      "Mandarin",
+      "https://youtube.com/communityA",
+      "Pop",
+    );
+    if ("error" in userRec) {
+      throw new Error(`Unexpected error: ${userRec.error}`);
+    }
+    // Validate community recs now include the new entry
+    const afterAddition = await countryConcept.getCommunityRecs(countryA);
+    if ("error" in afterAddition) {
+      throw new Error(`Unexpected error: ${afterAddition.error}`);
+    }
+    assertEquals(
+      afterAddition.recommendations.length,
+      1,
+      "CountryA should have 1 community rec after adding.",
+    );
+
+    // 3. User views country B with stored recommendations
     // First, manually populate country B with some recommendations
-    const countryBName = "CountryB";
     const countryBRecs = [];
     for (
       let i = 0;
-      i < TEST_QUERY_QUANTITY * TEST_BASELINE_MULTIPLIER + 5;
+      i < QUERY_QUANTITY * BASELINE_MULTIPLIER + 5;
       i++
     ) {
       countryBRecs.push({
@@ -39,19 +85,47 @@ Deno.test("Principle: User views countries with and without stored recommendatio
     await db.collection<{ _id: string; recommendations: unknown[] }>(
       countryCollection,
     ).insertOne({
-      _id: countryBName,
+      _id: countryB,
       recommendations: countryBRecs,
     });
 
-    const countryBResult = await countryConcept.getSystemRecs(countryBName);
+    const countryBResult = await countryConcept.getSystemRecs(countryB);
     // Due to randomization, we might get an LLM call or stored recs
+    // verify success
+    if ("error" in countryBResult) {
+      throw new Error(`Unexpected error: ${countryBResult.error}`);
+    }
 
-    // TODO: verify success
+    // 4. User goes back to view country A (new recs, should call LLM again because recs have not reached baseline)
+    const countryABefore2 = await countryConcept._getCountryStatus(countryA);
+    const countryASystem2 = await countryConcept.getSystemRecs(countryA);
+    const countryACommunity2 = await countryConcept.getCommunityRecs(countryA);
+    const countryAAfter2 = await countryConcept._getCountryStatus(countryA);
 
-    // 3. User goes back to view country A (new recs, should call LLM again because recs have not reached baseline)
-    const countryAResult2 = await countryConcept.getSystemRecs("CountryA");
+    // Verify that LLM call was made to generate recommendations for CountryA
+    if ("error" in countryABefore2) {
+      throw new Error(`Unexpected error: ${countryABefore2.error}`);
+    }
+    assertEquals(countryABefore2.systemCount, QUERY_QUANTITY);
 
-    // TODO: verify LLM call was made
+    if ("error" in countryAAfter2) {
+      throw new Error(`Unexpected error: ${countryAAfter2.error}`);
+    }
+    assertEquals(countryAAfter2.systemCount, QUERY_QUANTITY * 2);
+
+    // check success
+    if ("error" in countryASystem2) {
+      throw new Error(`Unexpected error: ${countryASystem2.error}`);
+    }
+
+    if ("error" in countryACommunity2) {
+      throw new Error(`Unexpected error: ${countryACommunity2.error}`);
+    }
+    assertEquals(
+      countryACommunity2.recommendations.length,
+      1,
+      "CountryA should still have 1 community rec.",
+    );
   } finally {
     await client.close();
   }
@@ -68,7 +142,7 @@ Deno.test("getCommunityRecs: with stored recs greater than QUERY_QUANTITY", asyn
     const countryName = "countryCommunity";
     const communityRecs = [];
     const recIds = [];
-    const recsCount = TEST_QUERY_QUANTITY + 2; // More than QUERY_QUANTITY
+    const recsCount = QUERY_QUANTITY + 2; // More than QUERY_QUANTITY
     for (let i = 0; i < recsCount; i++) {
       const recId = `rec:${i}` as ID;
       recIds.push(recId);
@@ -104,8 +178,8 @@ Deno.test("getCommunityRecs: with stored recs greater than QUERY_QUANTITY", asyn
     );
     assertEquals(
       (result as { recommendations: unknown[] }).recommendations.length,
-      TEST_QUERY_QUANTITY,
-      `Should return exactly QUERY_QUANTITY (${TEST_QUERY_QUANTITY}) recommendations, got ${
+      QUERY_QUANTITY,
+      `Should return exactly QUERY_QUANTITY (${QUERY_QUANTITY}) recommendations, got ${
         (result as { recommendations: unknown[] }).recommendations.length
       }.`,
     );
