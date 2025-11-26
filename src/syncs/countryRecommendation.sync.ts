@@ -18,14 +18,14 @@ export const GetNewRecsRequest: Sync = (
   then: actions([CountryRecommendation.getNewRecs, { countryName }]),
 });
 
-export const GetNewRecsResponse: Sync = ({ request, recs }) => ({
+export const GetNewRecsResponse: Sync = ({ request, recommendations }) => ({
   when: actions(
     [Requesting.request, { path: "/CountryRecommendation/getNewRecs" }, {
       request,
     }],
-    [CountryRecommendation.getNewRecs, {}, { recs }],
+    [CountryRecommendation.getNewRecs, {}, { recommendations }],
   ),
-  then: actions([Requesting.respond, { request, recs }]),
+  then: actions([Requesting.respond, { request, recommendations }]),
 });
 
 export const GetNewRecsResponseError: Sync = ({ request, error }) => ({
