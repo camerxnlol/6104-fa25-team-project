@@ -53,14 +53,14 @@ export const GetSystemRecsRequest: Sync = (
   then: actions([CountryRecommendation.getSystemRecs, { countryName }]),
 });
 
-export const GetSystemRecsResponse: Sync = ({ request, recs }) => ({
+export const GetSystemRecsResponse: Sync = ({ request, recommendations }) => ({
   when: actions(
     [Requesting.request, { path: "/CountryRecommendation/getSystemRecs" }, {
       request,
     }],
-    [CountryRecommendation.getSystemRecs, {}, { recs }],
+    [CountryRecommendation.getSystemRecs, {}, { recommendations }],
   ),
-  then: actions([Requesting.respond, { request, recs }]),
+  then: actions([Requesting.respond, { request, recommendations }]),
 });
 
 export const GetSystemRecsResponseError: Sync = ({ request, error }) => ({
@@ -88,14 +88,16 @@ export const GetCommunityRecsRequest: Sync = (
   then: actions([CountryRecommendation.getCommunityRecs, { countryName }]),
 });
 
-export const GetCommunityRecsResponse: Sync = ({ request, recs }) => ({
+export const GetCommunityRecsResponse: Sync = (
+  { request, recommendations },
+) => ({
   when: actions(
     [Requesting.request, { path: "/CountryRecommendation/getCommunityRecs" }, {
       request,
     }],
-    [CountryRecommendation.getCommunityRecs, {}, { recs }],
+    [CountryRecommendation.getCommunityRecs, {}, { recommendations }],
   ),
-  then: actions([Requesting.respond, { request, recs }]),
+  then: actions([Requesting.respond, { request, recommendations }]),
 });
 
 export const GetCommunityRecsResponseError: Sync = ({ request, error }) => ({
