@@ -2,6 +2,7 @@ import { Collection, Db } from "npm:mongodb";
 import { Empty, ID } from "@utils/types.ts";
 import { freshID } from "@utils/database.ts";
 import { GeminiLLM } from "../../../gemini-llm.ts";
+import axios from "npm:axios";
 
 // Declare collection prefix, use concept name
 const PREFIX = "CountryRecommendation" + ".";
@@ -42,14 +43,12 @@ interface RecommendationEntry {
 export default class CountryRecommendationConcept {
   private readonly countryCollection: Collection<Country>;
   private readonly recommendationCollection: Collection<RecommendationEntry>;
-  private llm: GeminiLLM;
 
   constructor(private readonly db: Db) {
     this.countryCollection = this.db.collection(PREFIX + "countries");
     this.recommendationCollection = this.db.collection(
       PREFIX + "recommendations",
     );
-    this.llm = new GeminiLLM();
   }
 
   /**
@@ -91,6 +90,17 @@ export default class CountryRecommendationConcept {
     // a JSON array of objects with keys: songTitle, artist, language, youtubeURL, genre
     const jsonResponse = await this.llmFetch(countryName, QUERY_QUANTITY);
 
+    const jsonStart = jsonResponse.indexOf("[");
+    const jsonEnd = jsonResponse.lastIndexOf("]") + 1;
+
+    if (jsonStart === -1 || jsonEnd === -1) {
+      return {
+        error: "LLM response parsing error: JSON array not found in response.",
+      };
+    }
+
+    const jsonString = jsonResponse.substring(jsonStart, jsonEnd);
+
     let parsed: {
       songTitle: string;
       artist: string;
@@ -100,7 +110,7 @@ export default class CountryRecommendationConcept {
     }[];
 
     try {
-      parsed = JSON.parse(jsonResponse);
+      parsed = JSON.parse(jsonString);
     } catch (err) {
       return { error: "LLM returned invalid JSON" };
     }
@@ -112,13 +122,14 @@ export default class CountryRecommendationConcept {
     const newRecs: RecommendationEntry[] = [];
 
     for (const rec of parsed) {
+      const youtubeAPIUrl = await this.getYoutubeUrl(rec.songTitle, rec.artist);
       const newRec: RecommendationEntry = {
         _id: freshID() as recId,
         countryName: countryName,
         songTitle: rec.songTitle,
         artist: rec.artist,
         language: rec.language,
-        youtubeURL: rec.youtubeURL,
+        youtubeURL: (youtubeAPIUrl === "") ? rec.youtubeURL : youtubeAPIUrl,
         recType: "SYSTEM",
         genre: rec.genre,
       };
@@ -163,6 +174,7 @@ export default class CountryRecommendationConcept {
     countryName: string,
     amount: number,
   ): Promise<string> {
+    const llm = this.loadLLM();
     const prompt = this.createPrompt(countryName, amount, "");
     // console.log(prompt);
 
@@ -170,7 +182,7 @@ export default class CountryRecommendationConcept {
       console.log(
         `🤖 Requesting sentence generation from Gemini AI...`,
       );
-      const response = await this.llm.executeLLM(prompt);
+      const response = await llm.executeLLM(prompt);
 
       console.log("✅ Received response from Gemini AI!");
       console.log("\n🤖 RAW GEMINI RESPONSE");
@@ -186,6 +198,44 @@ export default class CountryRecommendationConcept {
     }
   }
 
+  private async getYoutubeUrl(title: string, artist: string): Promise<string> {
+    const apiKey = Deno.env.get("YOUTUBE_API_KEY");
+    if (!apiKey) {
+      console.error("YOUTUBE_API_KEY not set in environment variables.");
+      return "";
+    }
+
+    const query = encodeURIComponent(`${title} ${artist} official music video`);
+
+    const url = `https://www.googleapis.com/youtube/v3/search`;
+
+    try {
+      const response = await axios.get(url, {
+        params: {
+          key: apiKey,
+          q: query,
+          part: "snippet",
+          type: "video",
+          maxResults: 1,
+          // videoEmbeddable: "true",
+        },
+      });
+
+      const items = response.data.items;
+
+      if (!items || items.length === 0) {
+        console.warn(`No YouTube results found for ${title} by ${artist}.`);
+        return "";
+      }
+
+      const videoId = items[0].id.videoId;
+      return `https://www.youtube.com/watch?v=${videoId}`;
+    } catch (error) {
+      console.error("Error fetching YouTube URL:", (error as Error).message);
+      return "";
+    }
+  }
+
   /**
    * Create the prompt for Gemini with hardwired preferences
    */
@@ -194,15 +244,59 @@ export default class CountryRecommendationConcept {
     amount: number,
     genre: string,
   ): string {
-    return (genre !== "")
-      ? `give me ${amount} underground/small music artists in ${countryName} with the genre ${genre}.
-    Provide one song from each artist. For each song, include the song title, artist,
-    language in which the song is sung, and YouTube URL to the official MV. Format the response as
-    a JSON array of objects with keys: songTitle, artist, language, youtubeURL.`
-      : `give me ${amount} underground/small music artists in ${countryName}.
-    Provide one song from each artist. For each song, include the song title, artist,
-    language in which the song is sung, YouTube URL to the official MV, and the genre. Format the response as
-    a JSON array of objects with keys: songTitle, artist, language, youtubeURL, genre.`;
+    const criticalRequirements = [
+      `1. Youtube URL must link to the official MV of the song.`,
+      `2. Songs and artists must originate from the specified country.`,
+      `3. The Youtube URL must be valid and accessible.`,
+      `4. The song must have an official MV on YouTube.`,
+      `5. The name of the artist must be the name of their Youtube channel, which must match the channel name of the official MV.`,
+    ];
+    const suffix = (genre !== "") ? `with the genre ${genre}.` : `.`;
+
+    const prompt = `
+      You are a helpful AI assistant in the role of a global music curator who specializes
+      in providing song recommendations from various countries around the world.
+
+      Given a country name, your task is to suggest ${amount} songs from underground or small music artists originating from that country.
+      Provide one song from each artist. For each song, include the song title, artist name (as per their official YouTube channel), the
+    language in which the song is sung, YouTube URL to the official MV, and the genre.
+
+    You must strictly adhere to the following critical requirements:
+    ${criticalRequirements.join("\n")}
+
+    Your response must be formatted as a JSON array of objects. Each object should be formatted as follows:
+    {
+      "songTitle": "<Title of the song>",
+      "artist": "<Name of the artist's Youtube channel>",
+      "language": "<Language of the song>",
+      "youtubeURL": "<YouTube URL to the official MV>",
+      "genre": "<Genre of the song>"
+    }
+
+    An example of a properly formatted response is as follows:
+    [
+      {
+        "songTitle": "Example Song 1",
+        "artist": "Example Artist 1",
+        "language": "Example Language 1",
+        "youtubeURL": "https://www.youtube.com/watch?v=example1",
+        "genre": "Example Genre 1"
+      },
+      {
+        "songTitle": "Example Song 2",
+        "artist": "Example Artist 2",
+        "language": "Example Language 2",
+        "youtubeURL": "https://www.youtube.com/watch?v=example2",
+        "genre": "Example Genre 2"
+      }
+    ]
+    DO NOT include any additional text, explanations, or commentary outside of the JSON array. DO NOT include line breaks or formatting outside the JSON array.
+    In other words, your first character must be "[" and your last character must be "]".
+
+    Now, with all this in mind, provide ${amount} underground or small music artists in ${countryName}` +
+      suffix;
+
+    return prompt;
   }
 
   /**
@@ -454,6 +548,25 @@ export default class CountryRecommendationConcept {
       };
     } catch (e) {
       return { error: `Error inspecting database. ERROR: ${e}` };
+    }
+  }
+
+  /**
+   * Load configuration from .env
+   */
+  private loadLLM(): GeminiLLM {
+    try {
+      const apiKey = Deno.env.get("GEMINI_API_KEY");
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY not found in environment variables.");
+      }
+      return new GeminiLLM(apiKey);
+    } catch (error) {
+      console.error(
+        "❌ Error loading .env. Please ensure GEMINI_API_KEY is set.",
+      );
+      console.error("Error details:", (error as Error).message);
+      Deno.exit(1);
     }
   }
 }
