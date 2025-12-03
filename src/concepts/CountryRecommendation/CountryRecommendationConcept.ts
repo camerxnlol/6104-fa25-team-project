@@ -129,7 +129,7 @@ export default class CountryRecommendationConcept {
         songTitle: rec.songTitle,
         artist: rec.artist,
         language: rec.language,
-        youtubeURL: (youtubeAPIUrl === "") ? rec.youtubeURL : youtubeAPIUrl,
+        youtubeURL: youtubeAPIUrl,
         recType: "SYSTEM",
         genre: rec.genre,
       };
@@ -205,7 +205,8 @@ export default class CountryRecommendationConcept {
       return "";
     }
 
-    const query = encodeURIComponent(`${title} ${artist} official music video`);
+    // const query = encodeURIComponent(`${title} ${artist} official music video`);
+    const query = `${title} ${artist} official music video`;
 
     const url = `https://www.googleapis.com/youtube/v3/search`;
 
@@ -217,9 +218,14 @@ export default class CountryRecommendationConcept {
           part: "snippet",
           type: "video",
           maxResults: 1,
-          // videoEmbeddable: "true",
+          videoEmbeddable: "true",
         },
       });
+
+      console.log(
+        `YouTube API response for ${title} by ${artist}:`,
+        response.data,
+      );
 
       const items = response.data.items;
 
