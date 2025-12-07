@@ -60,7 +60,9 @@ export default class PlaylistConcept {
 
     const existingPlaylist = await this.playlists.findOne({ owner, name });
     if (existingPlaylist) {
-      return { error: `Playlist with name '${name}' already exists for this user.` };
+      return {
+        error: `Playlist with name '${name}' already exists for this user.`,
+      };
     }
 
     const newPlaylistId = freshID();
@@ -91,7 +93,9 @@ export default class PlaylistConcept {
       return { error: `Playlist with ID '${playlist}' not found.` };
     }
     if (existingPlaylist.owner !== user) {
-      return { error: `User '${user}' is not the owner of playlist '${playlist}'.` };
+      return {
+        error: `User '${user}' is not the owner of playlist '${playlist}'.`,
+      };
     }
 
     await this.playlists.deleteOne({ _id: playlist });
@@ -108,7 +112,11 @@ export default class PlaylistConcept {
    * **effects**: updates the `name` of `playlist` to `newName`
    */
   async renamePlaylist(
-    { playlist, newName, user }: { playlist: Playlist; newName: string; user: User },
+    { playlist, newName, user }: {
+      playlist: Playlist;
+      newName: string;
+      user: User;
+    },
   ): Promise<Empty | { error: string }> {
     if (!newName || newName.trim() === "") {
       return { error: "New playlist name cannot be empty." };
@@ -119,13 +127,19 @@ export default class PlaylistConcept {
       return { error: `Playlist with ID '${playlist}' not found.` };
     }
     if (existingPlaylist.owner !== user) {
-      return { error: `User '${user}' is not the owner of playlist '${playlist}'.` };
+      return {
+        error: `User '${user}' is not the owner of playlist '${playlist}'.`,
+      };
     }
 
-    const playlistWithNewName = await this.playlists.findOne({ owner: user, name: newName });
+    const playlistWithNewName = await this.playlists.findOne({
+      owner: user,
+      name: newName,
+    });
     if (playlistWithNewName && playlistWithNewName._id !== playlist) {
       return {
-        error: `User '${user}' already has another playlist named '${newName}'.`,
+        error:
+          `User '${user}' already has another playlist named '${newName}'.`,
       };
     }
 
@@ -140,7 +154,8 @@ export default class PlaylistConcept {
    * addSong (playlist: Playlist, song: Song, user: User)
    *
    * **requires**: a `Playlist` with id `playlist` exists; the `owner` of
-   *   `playlist` is `user`
+   *   `playlist` is `user`; `song` does not already exist in the `songs`
+   *   sequence of `playlist`
    *
    * **effects**: appends `song` to the `songs` sequence of `playlist`
    */
@@ -152,9 +167,19 @@ export default class PlaylistConcept {
       return { error: `Playlist with ID '${playlist}' not found.` };
     }
     if (existingPlaylist.owner !== user) {
-      return { error: `User '${user}' is not the owner of playlist '${playlist}'.` };
+      return {
+        error: `User '${user}' is not the owner of playlist '${playlist}'.`,
+      };
+    }
+    if (existingPlaylist.songs.includes(song)) {
+      console.log("Duplicate song", song, "in playlist", playlist);
+      return {
+        error:
+          `DUPLICATE_SONG: Song '${song}' is already in playlist '${playlist}'.`,
+      };
     }
 
+    console.log("Adding song", song, "to playlist", playlist);
     await this.playlists.updateOne(
       { _id: playlist },
       { $push: { songs: song } },
@@ -179,10 +204,14 @@ export default class PlaylistConcept {
       return { error: `Playlist with ID '${playlist}' not found.` };
     }
     if (existingPlaylist.owner !== user) {
-      return { error: `User '${user}' is not the owner of playlist '${playlist}'.` };
+      return {
+        error: `User '${user}' is not the owner of playlist '${playlist}'.`,
+      };
     }
     if (!existingPlaylist.songs.includes(song)) {
-      return { error: `Song '${song}' is not found in playlist '${playlist}'.` };
+      return {
+        error: `Song '${song}' is not found in playlist '${playlist}'.`,
+      };
     }
 
     await this.playlists.updateOne(
@@ -203,14 +232,20 @@ export default class PlaylistConcept {
    *   `songs` sequence
    */
   async reorderSongs(
-    { playlist, songs, user }: { playlist: Playlist; songs: Song[]; user: User },
+    { playlist, songs, user }: {
+      playlist: Playlist;
+      songs: Song[];
+      user: User;
+    },
   ): Promise<Empty | { error: string }> {
     const existingPlaylist = await this.playlists.findOne({ _id: playlist });
     if (!existingPlaylist) {
       return { error: `Playlist with ID '${playlist}' not found.` };
     }
     if (existingPlaylist.owner !== user) {
-      return { error: `User '${user}' is not the owner of playlist '${playlist}'.` };
+      return {
+        error: `User '${user}' is not the owner of playlist '${playlist}'.`,
+      };
     }
 
     // Check multiset identity
@@ -225,12 +260,16 @@ export default class PlaylistConcept {
     }
 
     if (oldSongsMap.size !== newSongsMap.size) {
-      return { error: "Multiset of new songs is not identical to existing songs." };
+      return {
+        error: "Multiset of new songs is not identical to existing songs.",
+      };
     }
 
     for (const [s, count] of oldSongsMap.entries()) {
       if ((newSongsMap.get(s) || 0) !== count) {
-        return { error: "Multiset of new songs is not identical to existing songs." };
+        return {
+          error: "Multiset of new songs is not identical to existing songs.",
+        };
       }
     }
 
@@ -252,7 +291,10 @@ export default class PlaylistConcept {
   async _getPlaylistsForUser(
     { user }: { user: User },
   ): Promise<Array<{ playlist: Playlist; name: string }>> {
-    const userPlaylists = await this.playlists.find({ owner: user }).project({ _id: 1, name: 1 }).toArray();
+    const userPlaylists = await this.playlists.find({ owner: user }).project({
+      _id: 1,
+      name: 1,
+    }).toArray();
     return userPlaylists.map((p) => ({ playlist: p._id, name: p.name }));
   }
 
@@ -265,7 +307,9 @@ export default class PlaylistConcept {
    */
   async _getPlaylist(
     { playlist }: { playlist: Playlist },
-  ): Promise<Array<{ _id: Playlist; name: string; owner: User; songs: Song[] }>> {
+  ): Promise<
+    Array<{ _id: Playlist; name: string; owner: User; songs: Song[] }>
+  > {
     const foundPlaylist = await this.playlists.findOne({ _id: playlist });
     if (!foundPlaylist) {
       return [];
