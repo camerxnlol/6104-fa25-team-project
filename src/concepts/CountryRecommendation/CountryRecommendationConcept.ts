@@ -408,7 +408,7 @@ export default class CountryRecommendationConcept {
       artist: string;
       language: string;
       youtubeURL: string;
-      genre: string;
+      genre?: string;
     },
   ): Promise<{ recId: recId } | { error: string }> {
     try {
@@ -429,7 +429,7 @@ export default class CountryRecommendationConcept {
         rec.artist === artist &&
         rec.language === language &&
         rec.youtubeURL === youtubeURL &&
-        rec.genre === genre
+        rec.genre === (genre || "")
       );
 
       if (existing) {
@@ -446,7 +446,7 @@ export default class CountryRecommendationConcept {
         language,
         youtubeURL,
         recType: "COMMUNITY",
-        genre,
+        genre: genre || "",
       };
 
       await this.recommendationCollection.insertOne(newRec);
