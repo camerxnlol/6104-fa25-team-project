@@ -151,156 +151,125 @@ export default class CountryRecommendationConcept {
   async getNewRecs(
     { countryName }: { countryName: string },
   ): Promise<{ recommendations: RecommendationEntry[] } | { error: string }> {
-    // STEP 1: Get artists from LLM (array of artist names)
-    const jsonResponse = await this.llmFetch(countryName, QUERY_QUANTITY);
+    let allVerifiedRecs: RecommendationEntry[] = [];
+    let retries = 0;
+    const maxRetries = 2;
 
-    const jsonStart = jsonResponse.indexOf("[");
-    const jsonEnd = jsonResponse.lastIndexOf("]") + 1;
+    while (allVerifiedRecs.length < QUERY_QUANTITY && retries < maxRetries) {
+      // STEP 1: Get artists from LLM (array of artist names)
+      const jsonResponse = await this.llmFetch(countryName, QUERY_QUANTITY);
 
-    if (jsonStart === -1 || jsonEnd === -1) {
-      return {
-        error: "LLM response parsing error: JSON array not found in response.",
-      };
-    }
+      const jsonStart = jsonResponse.indexOf("[");
+      const jsonEnd = jsonResponse.lastIndexOf("]") + 1;
 
-    const jsonString = jsonResponse.substring(jsonStart, jsonEnd);
-
-    let artists: string[];
-
-    try {
-      const parsed = JSON.parse(jsonString);
-      // Handle both string array and object array formats
-      if (Array.isArray(parsed)) {
-        if (parsed.length > 0 && typeof parsed[0] === "string") {
-          artists = parsed;
-        } else if (
-          parsed.length > 0 && typeof parsed[0] === "object" &&
-          "artist" in parsed[0]
-        ) {
-          artists = (parsed as Array<{ artist: string }>).map((item) =>
-            item.artist
-          );
-        } else {
-          return { error: "LLM returned unexpected artist format" };
-        }
-      } else {
-        return { error: "LLM response is not an array" };
-      }
-    } catch (_err) {
-      return { error: "LLM returned invalid JSON" };
-    }
-
-    if (!Array.isArray(artists) || artists.length === 0) {
-      return { error: "LLM returned empty or invalid artist list" };
-    }
-
-    const newRecs: RecommendationEntry[] = [];
-    const verifiedRecs: RecommendationEntry[] = [];
-
-    // STEP 2: For each artist, get a song from discography on Spotify via Spotify API
-    for (const artist of artists) {
-      const spotifySong = await this.getSpotifySongFromArtist(
-        countryName,
-        artist,
-      );
-
-      if (!spotifySong) {
-        console.warn(
-          `Could not find valid song from artist ${artist}, skipping...`,
-        );
-        continue;
+      if (jsonStart === -1 || jsonEnd === -1) {
+        return {
+          error:
+            "LLM response parsing error: JSON array not found in response.",
+        };
       }
 
-      // STEP 3: Get YouTube URL for the song via youtube API
-      const spotifyArtistName = spotifySong.artists[0]?.name || artist;
-      const youtubeAPIUrl = await this.getYoutubeUrl(
-        spotifySong.name,
-        spotifyArtistName,
-      );
+      const jsonString = jsonResponse.substring(jsonStart, jsonEnd);
 
-      const newRec: RecommendationEntry = {
-        _id: freshID() as recId,
-        countryName: countryName,
-        songTitle: spotifySong.name,
-        artist: spotifyArtistName,
-        language: "", // TODO: detect language or add to Spotify data
-        youtubeURL: youtubeAPIUrl,
-        recType: "SYSTEM",
-        genre: "", // TODO: fetch genre from Spotify
-      };
+      let artists: string[];
 
-      newRecs.push(newRec);
-    }
-
-    // STEP 4: Verify songs via LLM and get song language
-    const songsToVerify = newRecs.map((rec) => ({
-      title: rec.songTitle,
-      artist: rec.artist,
-      youtubeURL: rec.youtubeURL,
-    }));
-
-    const verificationResponse = await this.llmVerify(
-      countryName,
-      songsToVerify,
-    );
-
-    // Parse the verification response
-    const verifyJsonStart = verificationResponse.indexOf("[");
-    const verifyJsonEnd = verificationResponse.lastIndexOf("]") + 1;
-
-    if (verifyJsonStart === -1 || verifyJsonEnd === -1) {
-      console.warn(
-        "LLM verification response parsing error, proceeding without verification",
-      );
-    } else {
       try {
-        const verifyJsonString = verificationResponse.substring(
-          verifyJsonStart,
-          verifyJsonEnd,
-        );
-        const llmVerificationJSON = JSON.parse(verifyJsonString) as Array<{
-          songTitle: string;
-          artist: string;
-          youtubeURL: string;
-          verified: string | boolean;
-          language: string;
-        }>;
-
-        // Update newRecs with verified language data and filter out unverified songs
-        for (
-          let i = 0; i < newRecs.length && i < llmVerificationJSON.length; i++
-        ) {
-          const verifiedSong = llmVerificationJSON[i];
-          // Handle both boolean true and string "true"
-          const isVerified = verifiedSong.verified === true ||
-            verifiedSong.verified === "true";
-          if (isVerified && verifiedSong.language) {
-            newRecs[i].language = verifiedSong.language;
-            verifiedRecs.push(newRecs[i]);
-            console.log(
-              `✅ VERIFIED: "${newRecs[i].songTitle}" by ${
-                newRecs[i].artist
-              } - Language: ${verifiedSong.language}`,
+        const parsed = JSON.parse(jsonString);
+        // Handle both string array and object array formats
+        if (Array.isArray(parsed)) {
+          if (parsed.length > 0 && typeof parsed[0] === "string") {
+            artists = parsed;
+          } else if (
+            parsed.length > 0 && typeof parsed[0] === "object" &&
+            "artist" in parsed[0]
+          ) {
+            artists = (parsed as Array<{ artist: string }>).map((item) =>
+              item.artist
             );
           } else {
-            console.warn(
-              `⚠️ FAILED verification: "${newRecs[i].songTitle}" by ${
-                newRecs[i].artist
-              }"`,
-            );
+            return { error: "LLM returned unexpected artist format" };
           }
+        } else {
+          return { error: "LLM response is not an array" };
         }
       } catch (_err) {
-        console.warn(
-          "Failed to parse LLM verification response, proceeding without verification",
+        return { error: "LLM returned invalid JSON" };
+      }
+
+      if (!Array.isArray(artists) || artists.length === 0) {
+        return { error: "LLM returned empty or invalid artist list" };
+      }
+
+      const newRecs: RecommendationEntry[] = [];
+
+      // STEP 2: For each artist, get a song from discography on Spotify via Spotify API
+      for (const artist of artists) {
+        const spotifySong = await this.getSpotifySongFromArtist(
+          countryName,
+          artist,
         );
+
+        if (!spotifySong) {
+          console.warn(
+            `Could not find valid song from artist ${artist}, skipping...`,
+          );
+          continue;
+        }
+
+        // STEP 3: Get YouTube URL for the song via youtube API
+        const spotifyArtistName = spotifySong.artists[0]?.name || artist;
+        const youtubeAPIUrl = await this.getYoutubeUrl(
+          spotifySong.name,
+          spotifyArtistName,
+        );
+
+        const newRec: RecommendationEntry = {
+          _id: freshID() as recId,
+          countryName: countryName,
+          songTitle: spotifySong.name,
+          artist: spotifyArtistName,
+          language: "",
+          youtubeURL: youtubeAPIUrl,
+          recType: "SYSTEM",
+          genre: "", // TODO: fetch genre
+        };
+
+        newRecs.push(newRec);
+      }
+
+      // STEP 4: Verify songs via LLM and get song language
+      const verifiedRecs = await this.verifyAndFilterSongs(
+        countryName,
+        newRecs,
+      );
+
+      // Add verified songs to the accumulator
+      allVerifiedRecs = allVerifiedRecs.concat(verifiedRecs);
+
+      if (allVerifiedRecs.length < QUERY_QUANTITY) {
+        retries++;
+        if (retries < maxRetries) {
+          console.log(
+            `⚠️ Only ${allVerifiedRecs.length} verified songs found (need ${QUERY_QUANTITY}). Retrying... (Attempt ${
+              retries + 1
+            }/${maxRetries})`,
+          );
+        }
       }
     }
+
+    // Log final count
+    console.log(
+      `✅ Got ${allVerifiedRecs.length} verified songs after ${retries} retry attempt(s)`,
+    );
+
+    // Take only the first QUERY_QUANTITY songs
+    const selectedRecs = allVerifiedRecs.slice(0, QUERY_QUANTITY);
 
     // Check for duplicates before inserting
     const finalRecs: RecommendationEntry[] = [];
 
-    for (const rec of verifiedRecs) {
+    for (const rec of selectedRecs) {
       const existing = await this.recommendationCollection.findOne({
         country: countryName,
         songTitle: rec.songTitle,
@@ -325,6 +294,87 @@ export default class CountryRecommendationConcept {
     }
 
     return { recommendations: finalRecs };
+  }
+
+  /**
+   * Helper to verify songs via LLM and filter out unverified ones
+   * @returns array of verified recommendations with language populated
+   */
+  private async verifyAndFilterSongs(
+    countryName: string,
+    recommendations: RecommendationEntry[],
+  ): Promise<RecommendationEntry[]> {
+    const songsToVerify = recommendations.map((rec) => ({
+      title: rec.songTitle,
+      artist: rec.artist,
+      youtubeURL: rec.youtubeURL,
+    }));
+
+    const verificationResponse = await this.llmVerify(
+      countryName,
+      songsToVerify,
+    );
+
+    // Parse the verification response
+    const verifyJsonStart = verificationResponse.indexOf("[");
+    const verifyJsonEnd = verificationResponse.lastIndexOf("]") + 1;
+
+    if (verifyJsonStart === -1 || verifyJsonEnd === -1) {
+      console.warn(
+        "LLM verification response parsing error, proceeding without verification",
+      );
+      return recommendations; // Return all recommendations if parsing fails
+    }
+
+    const verifiedRecs: RecommendationEntry[] = [];
+
+    try {
+      const verifyJsonString = verificationResponse.substring(
+        verifyJsonStart,
+        verifyJsonEnd,
+      );
+      const llmVerificationJSON = JSON.parse(verifyJsonString) as Array<{
+        songTitle: string;
+        artist: string;
+        youtubeURL: string;
+        verified: string | boolean;
+        language: string;
+      }>;
+
+      // Update recommendations with verified language data and filter out unverified songs
+      for (
+        let i = 0;
+        i < recommendations.length && i < llmVerificationJSON.length;
+        i++
+      ) {
+        const verifiedSong = llmVerificationJSON[i];
+        // Handle both boolean true and string "true"
+        const isVerified = verifiedSong.verified === true ||
+          verifiedSong.verified === "true";
+        if (isVerified && verifiedSong.language) {
+          recommendations[i].language = verifiedSong.language;
+          verifiedRecs.push(recommendations[i]);
+          console.log(
+            `✅ VERIFIED: "${recommendations[i].songTitle}" by ${
+              recommendations[i].artist
+            } - Language: ${verifiedSong.language}`,
+          );
+        } else {
+          console.warn(
+            `⚠️ FAILED verification: "${recommendations[i].songTitle}" by ${
+              recommendations[i].artist
+            }"`,
+          );
+        }
+      }
+    } catch (_err) {
+      console.warn(
+        "Failed to parse LLM verification response, proceeding without verification",
+      );
+      return recommendations; // Return all recommendations if parsing fails
+    }
+
+    return verifiedRecs;
   }
 
   /**
