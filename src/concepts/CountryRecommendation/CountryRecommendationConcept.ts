@@ -4,6 +4,70 @@ import { freshID } from "@utils/database.ts";
 import { GeminiLLM } from "../../../gemini-llm.ts";
 import axios from "npm:axios";
 
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  artists: Array<{ name: string }>;
+  external_urls: {
+    spotify: string;
+  };
+}
+
+// Country name to ISO 3166-1 alpha-2 code mapping for Spotify API
+const COUNTRY_CODE_MAP: { [key: string]: string } = {
+  "United States": "US",
+  "United States of America": "US",
+  "United Kingdom": "GB",
+  "Canada": "CA",
+  "Australia": "AU",
+  "Japan": "JP",
+  "South Korea": "KR",
+  "Taiwan": "TW",
+  "China": "CN",
+  "Vietnam": "VN",
+  "Thailand": "TH",
+  "Indonesia": "ID",
+  "Philippines": "PH",
+  "Malaysia": "MY",
+  "Singapore": "SG",
+  "India": "IN",
+  "Pakistan": "PK",
+  "Bangladesh": "BD",
+  "Sri Lanka": "LK",
+  "Mexico": "MX",
+  "Brazil": "BR",
+  "Argentina": "AR",
+  "Chile": "CL",
+  "Colombia": "CO",
+  "Peru": "PE",
+  "Germany": "DE",
+  "France": "FR",
+  "Italy": "IT",
+  "Spain": "ES",
+  "Portugal": "PT",
+  "Netherlands": "NL",
+  "Belgium": "BE",
+  "Switzerland": "CH",
+  "Austria": "AT",
+  "Sweden": "SE",
+  "Norway": "NO",
+  "Denmark": "DK",
+  "Finland": "FI",
+  "Poland": "PL",
+  "Russia": "RU",
+  "Ukraine": "UA",
+  "Greece": "GR",
+  "Turkey": "TR",
+  "Egypt": "EG",
+  "South Africa": "ZA",
+  "Nigeria": "NG",
+  "Kenya": "KE",
+  "Israel": "IL",
+  "Saudi Arabia": "SA",
+  "United Arab Emirates": "AE",
+  "New Zealand": "NZ",
+};
+
 // Declare collection prefix, use concept name
 const PREFIX = "CountryRecommendation" + ".";
 
@@ -87,7 +151,7 @@ export default class CountryRecommendationConcept {
   async getNewRecs(
     { countryName }: { countryName: string },
   ): Promise<{ recommendations: RecommendationEntry[] } | { error: string }> {
-    // a JSON array of objects with keys: songTitle, artist, language, youtubeURL, genre
+    // STEP 1: Get artists from LLM (array of artist names)
     const jsonResponse = await this.llmFetch(countryName, QUERY_QUANTITY);
 
     const jsonStart = jsonResponse.indexOf("[");
@@ -101,46 +165,142 @@ export default class CountryRecommendationConcept {
 
     const jsonString = jsonResponse.substring(jsonStart, jsonEnd);
 
-    let parsed: {
-      songTitle: string;
-      artist: string;
-      language: string;
-      youtubeURL: string;
-      genre: string;
-    }[];
+    let artists: string[];
 
     try {
-      parsed = JSON.parse(jsonString);
-    } catch (err) {
+      const parsed = JSON.parse(jsonString);
+      // Handle both string array and object array formats
+      if (Array.isArray(parsed)) {
+        if (parsed.length > 0 && typeof parsed[0] === "string") {
+          artists = parsed;
+        } else if (
+          parsed.length > 0 && typeof parsed[0] === "object" &&
+          "artist" in parsed[0]
+        ) {
+          artists = (parsed as Array<{ artist: string }>).map((item) =>
+            item.artist
+          );
+        } else {
+          return { error: "LLM returned unexpected artist format" };
+        }
+      } else {
+        return { error: "LLM response is not an array" };
+      }
+    } catch (_err) {
       return { error: "LLM returned invalid JSON" };
     }
 
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return { error: "LLM returned empty or invalid recommendation list" };
+    if (!Array.isArray(artists) || artists.length === 0) {
+      return { error: "LLM returned empty or invalid artist list" };
     }
 
     const newRecs: RecommendationEntry[] = [];
+    const verifiedRecs: RecommendationEntry[] = [];
 
-    for (const rec of parsed) {
-      const youtubeAPIUrl = await this.getYoutubeUrl(rec.songTitle, rec.artist);
+    // STEP 2: For each artist, get a song from discography on Spotify via Spotify API
+    for (const artist of artists) {
+      const spotifySong = await this.getSpotifySongFromArtist(
+        countryName,
+        artist,
+      );
+
+      if (!spotifySong) {
+        console.warn(
+          `Could not find valid song from artist ${artist}, skipping...`,
+        );
+        continue;
+      }
+
+      // STEP 3: Get YouTube URL for the song via youtube API
+      const spotifyArtistName = spotifySong.artists[0]?.name || artist;
+      const youtubeAPIUrl = await this.getYoutubeUrl(
+        spotifySong.name,
+        spotifyArtistName,
+      );
+
       const newRec: RecommendationEntry = {
         _id: freshID() as recId,
         countryName: countryName,
-        songTitle: rec.songTitle,
-        artist: rec.artist,
-        language: rec.language,
+        songTitle: spotifySong.name,
+        artist: spotifyArtistName,
+        language: "", // TODO: detect language or add to Spotify data
         youtubeURL: youtubeAPIUrl,
         recType: "SYSTEM",
-        genre: rec.genre,
+        genre: "", // TODO: fetch genre from Spotify
       };
 
       newRecs.push(newRec);
     }
 
+    // STEP 4: Verify songs via LLM and get song language
+    const songsToVerify = newRecs.map((rec) => ({
+      title: rec.songTitle,
+      artist: rec.artist,
+      youtubeURL: rec.youtubeURL,
+    }));
+
+    const verificationResponse = await this.llmVerify(
+      countryName,
+      songsToVerify,
+    );
+
+    // Parse the verification response
+    const verifyJsonStart = verificationResponse.indexOf("[");
+    const verifyJsonEnd = verificationResponse.lastIndexOf("]") + 1;
+
+    if (verifyJsonStart === -1 || verifyJsonEnd === -1) {
+      console.warn(
+        "LLM verification response parsing error, proceeding without verification",
+      );
+    } else {
+      try {
+        const verifyJsonString = verificationResponse.substring(
+          verifyJsonStart,
+          verifyJsonEnd,
+        );
+        const llmVerificationJSON = JSON.parse(verifyJsonString) as Array<{
+          songTitle: string;
+          artist: string;
+          youtubeURL: string;
+          verified: string | boolean;
+          language: string;
+        }>;
+
+        // Update newRecs with verified language data and filter out unverified songs
+        for (
+          let i = 0; i < newRecs.length && i < llmVerificationJSON.length; i++
+        ) {
+          const verifiedSong = llmVerificationJSON[i];
+          // Handle both boolean true and string "true"
+          const isVerified = verifiedSong.verified === true ||
+            verifiedSong.verified === "true";
+          if (isVerified && verifiedSong.language) {
+            newRecs[i].language = verifiedSong.language;
+            verifiedRecs.push(newRecs[i]);
+            console.log(
+              `✅ VERIFIED: "${newRecs[i].songTitle}" by ${
+                newRecs[i].artist
+              } - Language: ${verifiedSong.language}`,
+            );
+          } else {
+            console.warn(
+              `⚠️ FAILED verification: "${newRecs[i].songTitle}" by ${
+                newRecs[i].artist
+              }"`,
+            );
+          }
+        }
+      } catch (_err) {
+        console.warn(
+          "Failed to parse LLM verification response, proceeding without verification",
+        );
+      }
+    }
+
     // Check for duplicates before inserting
     const finalRecs: RecommendationEntry[] = [];
 
-    for (const rec of newRecs) {
+    for (const rec of verifiedRecs) {
       const existing = await this.recommendationCollection.findOne({
         country: countryName,
         songTitle: rec.songTitle,
@@ -168,19 +328,50 @@ export default class CountryRecommendationConcept {
   }
 
   /**
-   * Helper to execute LLM request and parse response.
+   * Helper to execute LLM request to fetch artists
    */
   private async llmFetch(
     countryName: string,
     amount: number,
   ): Promise<string> {
     const llm = this.loadLLM();
-    const prompt = this.createPrompt(countryName, amount, "");
+    const prompt = this.getArtistPrompt(countryName, amount, "");
     // console.log(prompt);
 
     try {
       console.log(
-        `🤖 Requesting sentence generation from Gemini AI...`,
+        `🤖 Requesting artists in ${countryName} from Gemini AI...`,
+      );
+      const response = await llm.executeLLM(prompt);
+
+      console.log("✅ Received response from Gemini AI!");
+      console.log("\n🤖 RAW GEMINI RESPONSE");
+      console.log("======================");
+      console.log(response);
+      console.log("======================\n");
+
+      return response;
+    } catch (error) {
+      // Non-retryable errors propagate immediately
+      console.error("❌ Unexpected error:", (error as Error).message);
+      throw error;
+    }
+  }
+
+  /**
+   * Helper to verify songs and get language via LLM
+   */
+  private async llmVerify(
+    countryName: string,
+    songs: Array<{ title: string; artist: string; youtubeURL: string }>,
+  ): Promise<string> {
+    const llm = this.loadLLM();
+    const prompt = this.getVerifyPrompt(countryName, songs);
+    // console.log(prompt);
+
+    try {
+      console.log(
+        `🤖 Verifying songs via Gemini AI...`,
       );
       const response = await llm.executeLLM(prompt);
 
@@ -243,6 +434,154 @@ export default class CountryRecommendationConcept {
   }
 
   /**
+   * Get Spotify access token using Client Credentials flow
+   */
+  private async getSpotifyAccessToken(): Promise<string | null> {
+    const clientId = Deno.env.get("SPOTIFY_CLIENT_ID");
+    const clientSecret = Deno.env.get("SPOTIFY_CLIENT_SECRET");
+
+    if (!clientId || !clientSecret) {
+      console.error(
+        "SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET not set in environment variables.",
+      );
+      return null;
+    }
+
+    const auth = btoa(`${clientId}:${clientSecret}`);
+
+    try {
+      const response = await axios.post(
+        "https://accounts.spotify.com/api/token",
+        "grant_type=client_credentials",
+        {
+          headers: {
+            Authorization: `Basic ${auth}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        },
+      );
+
+      return response.data.access_token;
+    } catch (error) {
+      console.error(
+        "Error getting Spotify access token:",
+        (error as Error).message,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get a song from Spotify API by artist name
+   * Returns the first available track from the artist
+   */
+  private async getSpotifySongFromArtist(
+    countryName: string,
+    artistName: string,
+  ): Promise<SpotifyTrack | null> {
+    const token = await this.getSpotifyAccessToken();
+    if (!token) {
+      console.error("Could not obtain Spotify access token.");
+      return null;
+    }
+
+    // Convert country name to ISO code, default to US if not found
+    const marketCode = COUNTRY_CODE_MAP[countryName] || "US";
+
+    try {
+      // Search for the artist - try without the strict "artist:" prefix first
+      console.log(`Searching Spotify for artist: "${artistName}"...`);
+      const searchResponse = await axios.get(
+        "https://api.spotify.com/v1/search",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          params: {
+            q: artistName,
+            type: "artist",
+            limit: 3,
+          },
+        },
+      );
+
+      const artists = searchResponse.data.artists.items;
+      if (!artists || artists.length === 0) {
+        console.warn(`Artist "${artistName}" not found on Spotify.`);
+        return null;
+      }
+
+      // Try to find exact match first, otherwise use first result
+      let matchedArtist = artists.find(
+        (a: { name: string }) =>
+          a.name.toLowerCase() === artistName.toLowerCase(),
+      );
+
+      if (!matchedArtist) {
+        // If no exact match, use the first result
+        matchedArtist = artists[0];
+        console.log(
+          `No exact match for "${artistName}", using closest match: "${matchedArtist.name}"`,
+        );
+      }
+
+      const artistId = matchedArtist.id;
+      console.log(
+        `Found artist "${matchedArtist.name}" on Spotify with ID: ${artistId}`,
+      );
+
+      // Get top tracks from the artist
+      console.log(
+        `Fetching top tracks for artist ID ${artistId} with market: ${marketCode}`,
+      );
+      const tracksResponse = await axios.get(
+        `https://api.spotify.com/v1/artists/${artistId}/top-tracks`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          params: {
+            market: marketCode,
+          },
+        },
+      );
+
+      const tracks = tracksResponse.data.tracks;
+      if (!tracks || tracks.length === 0) {
+        console.warn(`No tracks found for artist ${artistName}.`);
+        return null;
+      }
+
+      // Select a random track instead of the first one
+      const randomIndex = Math.floor(Math.random() * tracks.length);
+      const track = tracks[randomIndex];
+      console.log(
+        `Got track "${track.name}" (${
+          randomIndex + 1
+        }/${tracks.length}) from artist ${artistName} on Spotify`,
+      );
+
+      return {
+        id: track.id,
+        name: track.name,
+        artists: track.artists,
+        external_urls: track.external_urls,
+      };
+    } catch (error) {
+      const errorMsg = axios.isAxiosError(error)
+        ? `Status ${error.response?.status}: ${error.response?.statusText}`
+        : (error as Error).message;
+      console.error(
+        `Error fetching song from Spotify for artist ${artistName}: ${errorMsg}`,
+      );
+      if (axios.isAxiosError(error) && error.response?.data) {
+        console.error("Spotify API response:", error.response.data);
+      }
+      return null;
+    }
+  }
+
+  /**
    * Create the prompt for Gemini with hardwired preferences
    */
   private createPrompt(
@@ -251,56 +590,148 @@ export default class CountryRecommendationConcept {
     genre: string,
   ): string {
     const criticalRequirements = [
-      `1. Youtube URL must link to the official MV of the song.`,
-      `2. Songs and artists must originate from the specified country.`,
-      `3. The Youtube URL must be valid and accessible.`,
-      `4. The song must have an official MV on YouTube.`,
-      `5. The name of the artist must be the name of their Youtube channel, which must match the channel name of the official MV.`,
+      `1. Songs and artists must originate from the specified country.`,
+      `2. The song must have an accessible video on YouTube (e.g., official MV, lyric video, or album track).`,
+      `3. Artists must be underground or small (not widely known internationally).`,
+      `4. Verify song title is correctly listed in the artist's discography.`,
     ];
+
     const suffix = (genre !== "") ? `with the genre ${genre}.` : `.`;
 
-    const prompt = `
-      You are a helpful AI assistant in the role of a global music curator who specializes
-      in providing song recommendations from various countries around the world.
+    const prompt =
+      `You are a helpful AI assistant in the role of a global music curator who specializes
+    in providing song recommendations from various countries around the world.
+    Given a country name, your task is to suggest 3 songs from underground or small music artists originating from that country. Perform the following steps:
+    
+    1. Find 3 different underground or small music artists in the given country.
+    2. For each of the artist found in step 1, find a song from that artist.
+    3. **CRITICAL VERIFICATION**: Verify that the song title is correctly listed in the artist's discography and has a corresponding YouTube video.
+    4. Provide the song title, the language in which the song is sung, and the genre.
+        You must strictly adhere to the following critical requirements:
+      ${criticalRequirements.join("\n")}
 
-      Given a country name, your task is to suggest ${amount} songs from underground or small music artists originating from that country.
-      Provide one song from each artist. For each song, include the song title, artist name (as per their official YouTube channel), the
-    language in which the song is sung, YouTube URL to the official MV, and the genre.
-
-    You must strictly adhere to the following critical requirements:
-    ${criticalRequirements.join("\n")}
-
+    ***VERIFICATION PROCESS (MANDATORY):***
+    1. Before including any song, the model must internally confirm the song title's presence in the artist's official discography.
+    2. The model must confirm the existence of a corresponding video on YouTube (any type: lyric, album track, or MV).
+    3. **If verification fails for a song, it MUST be discarded, and a new song must be chosen until 3 verified results are found.**
+    
     Your response must be formatted as a JSON array of objects. Each object should be formatted as follows:
-    {
+    { 
       "songTitle": "<Title of the song>",
-      "artist": "<Name of the artist's Youtube channel>",
+      "artist": "<Name of the artist>",
       "language": "<Language of the song>",
-      "youtubeURL": "<YouTube URL to the official MV>",
       "genre": "<Genre of the song>"
     }
 
     An example of a properly formatted response is as follows:
     [
       {
-        "songTitle": "Example Song 1",
-        "artist": "Example Artist 1",
-        "language": "Example Language 1",
-        "youtubeURL": "https://www.youtube.com/watch?v=example1",
-        "genre": "Example Genre 1"
+        "songTitle": "Em Không",
+        "artist": "Vũ Thanh Vân",
+        "language": "Vietnamese", 
+        "genre": "Pop ballad"
       },
       {
-        "songTitle": "Example Song 2",
-        "artist": "Example Artist 2",
-        "language": "Example Language 2",
-        "youtubeURL": "https://www.youtube.com/watch?v=example2",
-        "genre": "Example Genre 2"
+        "songTitle": "轟18伶仃",
+        "artist": "LilHAO",
+        "language": "Mandarin",
+        "genre": "Rap"
       }
     ]
-    DO NOT include any additional text, explanations, or commentary outside of the JSON array. DO NOT include line breaks or formatting outside the JSON array.
+
+    DO NOT include any additional text, explanations, or commentary outside of the JSON array. 
+    DO NOT include line breaks or formatting outside the JSON array.
+
     In other words, your first character must be "[" and your last character must be "]".
 
     Now, with all this in mind, provide ${amount} underground or small music artists in ${countryName}` +
       suffix;
+
+    return prompt;
+  }
+
+  private getArtistPrompt(
+    countryName: string,
+    amount: number,
+    genre: string,
+  ): string {
+    const criticalRequirements = [
+      `1. Artists must originate from the specified country.`,
+      `2. Artists must be underground or small (not widely known internationally).`,
+      `3. Artists must be on Spotify.`,
+    ];
+
+    const suffix = (genre !== "") ? `with the genre ${genre}.` : `.`;
+
+    const prompt =
+      `You are a helpful AI assistant in the role of a global music curator who specializes
+    in providing artist recommendations from various countries around the world.
+    Given a country name, your task is to suggest ${amount} artists that are underground or small music artists originating from that country. Perform the following steps:
+    
+    1. Find ${amount} different underground or small music artists in the given country.
+    2. You must strictly adhere to the following critical requirements:
+      ${criticalRequirements.join("\n")}
+
+    ***VERIFICATION PROCESS (MANDATORY):***
+    1. Before including any artist, the model must internally confirm the artist's origin from the specified country.
+    3. **If verification fails for an artist, it MUST be discarded, and a new artist must be chosen until ${amount} verified results are found.**
+    
+    Your response must be formatted as a array of strings. Each string should be the name of an artist.
+
+    EXAMPLE: An example of a properly formatted response for 3 artists in Taiwan is as follows:
+    RESPONSE: [ "LilHAO", "茄子蛋 EggPlantEgg", "陳忻玥" ]
+
+    DO NOT include any additional text, explanations, or commentary outside of the array. 
+
+    In other words, your first character must be "[" and your last character must be "]".
+
+    Now, with all this in mind, provide ${amount} underground or small music artists in ${countryName}` +
+      suffix;
+
+    return prompt;
+  }
+
+  private getVerifyPrompt(
+    countryName: string,
+    songs: Array<{ title: string; artist: string; youtubeURL: string }>,
+  ): string {
+    const prompt =
+      `Verify that the following songs originate from ${countryName} and provide the language in which the song is sung.
+      
+      Your response should be a JSON array of length ${songs.length}. Each object in the array should have the following format:
+      {
+        "songTitle": "<Title of the song>",
+        "artist": "<Name of the artist>",
+        "youtubeURL": "<YouTube URL of the song>",
+        "verified": "<true if the song is verified to be from ${countryName}, false otherwise>"
+        "language": "<Language of the song IF verified is true, empty string otherwise>",
+      }
+      EXAMPLE RESPONSE for country=Taiwan: [ 
+      [
+        {
+          "songTitle": "Em Không",
+          "artist": "Vũ Thanh Vân",
+          "youtubeURL": "https://youtu.be/CufIAJDVZvo?si=zcMY21zBouslilhJ",
+          "verified": "false",
+          "language": ""
+        },
+        {
+          "songTitle": "轟18伶仃",
+          "artist": "LilHAO",
+          "youtubeURL": "https://youtu.be/oLIRyn56kf8?si=xb0phDTAVjeaaPJS",
+          "verified": "true",
+          "language": "Mandarin"
+        },
+        {
+          "songTitle": "運轉人生",
+          "artist": "邱軍Kui",
+          "youtubeURL": "https://www.youtube.com/watch?v=x-OinY-8bxc",
+          "verified": "true",
+          "language": "Taiwanese Hokkien"
+        }
+      ]
+      
+      SONGS TO VERIFY: ${JSON.stringify(songs)}`;
 
     return prompt;
   }
