@@ -52,6 +52,7 @@ export default class ReportingConcept {
     }
 
     // Create the new report (effects clause)
+    console.log("Initializing report for songId:", objectId);
     const newReport: Report = {
       _id: objectId,
       count: 0,
@@ -66,17 +67,24 @@ export default class ReportingConcept {
   /**
    * Report (objectId: string, userId: string)
    *
-   * @requires a report for objectId exists and userId isn’t in its
-   *           reporters set
-   * @effects increment the count of the report that contains objectId. Add
-   *          userId to its reporters set
+   * @requires userId isn't in the objectId's reporters set
+   * @effects If no report exists for objectId, initialize it first.
+   *          Then increment the count of the report that contains objectId.
+   *          Add userId to its reporters set
    */
   async Report(
     { objectId, userId }: { objectId: ObjectId; userId: UserId },
   ): Promise<Empty | { error: string }> {
-    // The filter for the update will check both parts of the 'requires' clause:
-    // 1. The document with `_id: objectId` must exist.
-    // 2. The `reporters` array must not contain `userId`.
+    // Check if report exists, if not initialize it
+    const existingReport = await this.reports.findOne({ _id: objectId });
+    if (!existingReport) {
+      // Initialize the object before reporting
+      await this.InitializeObject({ objectId });
+    }
+
+    console.log("Reporting songId:", objectId);
+
+    // The filter for the update will check that the `reporters` array must not contain `userId`.
     const filter = {
       _id: objectId,
       reporters: { $ne: userId },
@@ -92,15 +100,8 @@ export default class ReportingConcept {
 
     const result = await this.reports.updateOne(filter, update);
 
-    // If `modifiedCount` is 0, it means the filter did not match any document,
-    // which implies that one of the 'requires' conditions was not met.
+    // If `modifiedCount` is 0, it means the user is already in the reporters set.
     if (result.modifiedCount === 0) {
-      // To provide a specific error, we check which condition failed.
-      const report = await this.reports.findOne({ _id: objectId });
-      if (!report) {
-        return { error: `Report for objectId '${objectId}' does not exist.` };
-      }
-      // If the report exists, it must be because the user is already in the reporters set.
       return {
         error: `User '${userId}' has already reported objectId '${objectId}'.`,
       };
