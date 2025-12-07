@@ -1,8 +1,9 @@
 import { Collection, Db } from "npm:mongodb";
-import { Empty, ID } from "@utils/types.ts";
+import { ID } from "@utils/types.ts";
 import { freshID } from "@utils/database.ts";
 import { GeminiLLM } from "../../../gemini-llm.ts";
 import axios from "npm:axios";
+import { COUNTRY_CODE_MAP } from "./COUNTRY_CODE_MAP.ts";
 
 interface SpotifyTrack {
   id: string;
@@ -12,61 +13,6 @@ interface SpotifyTrack {
     spotify: string;
   };
 }
-
-// Country name to ISO 3166-1 alpha-2 code mapping for Spotify API
-const COUNTRY_CODE_MAP: { [key: string]: string } = {
-  "United States": "US",
-  "United States of America": "US",
-  "United Kingdom": "GB",
-  "Canada": "CA",
-  "Australia": "AU",
-  "Japan": "JP",
-  "South Korea": "KR",
-  "Taiwan": "TW",
-  "China": "CN",
-  "Vietnam": "VN",
-  "Thailand": "TH",
-  "Indonesia": "ID",
-  "Philippines": "PH",
-  "Malaysia": "MY",
-  "Singapore": "SG",
-  "India": "IN",
-  "Pakistan": "PK",
-  "Bangladesh": "BD",
-  "Sri Lanka": "LK",
-  "Mexico": "MX",
-  "Brazil": "BR",
-  "Argentina": "AR",
-  "Chile": "CL",
-  "Colombia": "CO",
-  "Peru": "PE",
-  "Germany": "DE",
-  "France": "FR",
-  "Italy": "IT",
-  "Spain": "ES",
-  "Portugal": "PT",
-  "Netherlands": "NL",
-  "Belgium": "BE",
-  "Switzerland": "CH",
-  "Austria": "AT",
-  "Sweden": "SE",
-  "Norway": "NO",
-  "Denmark": "DK",
-  "Finland": "FI",
-  "Poland": "PL",
-  "Russia": "RU",
-  "Ukraine": "UA",
-  "Greece": "GR",
-  "Turkey": "TR",
-  "Egypt": "EG",
-  "South Africa": "ZA",
-  "Nigeria": "NG",
-  "Kenya": "KE",
-  "Israel": "IL",
-  "Saudi Arabia": "SA",
-  "United Arab Emirates": "AE",
-  "New Zealand": "NZ",
-};
 
 // Declare collection prefix, use concept name
 const PREFIX = "CountryRecommendation" + ".";
