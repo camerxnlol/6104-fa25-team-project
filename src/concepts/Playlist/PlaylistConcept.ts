@@ -1,6 +1,7 @@
 import { Collection, Db } from "npm:mongodb";
 import { Empty, ID } from "@utils/types.ts";
 import { freshID } from "@utils/database.ts";
+import type { ObjectId } from "npm:mongodb";
 
 /**
  * concept Playlist [User, Song]
@@ -36,9 +37,11 @@ interface PlaylistsCollection {
 
 export default class PlaylistConcept {
   playlists: Collection<PlaylistsCollection>;
+  private readonly recommendationCollection: Collection;
 
   constructor(private readonly db: Db) {
     this.playlists = this.db.collection(PREFIX + "playlists");
+    this.recommendationCollection = this.db.collection("CountryRecommendation.recommendations");
   }
 
   /**
@@ -303,22 +306,44 @@ export default class PlaylistConcept {
    *
    * **requires**: `playlist` exists
    *
-   * **effects**: returns all information for the given `playlist`
+   * **effects**: returns all information for the given `playlist`, with songs enriched with full recommendation data
    */
   async _getPlaylist(
     { playlist }: { playlist: Playlist },
   ): Promise<
-    Array<{ _id: Playlist; name: string; owner: User; songs: Song[] }>
+    Array<{ _id: Playlist; name: string; owner: User; songs: any[] }>
   > {
     const foundPlaylist = await this.playlists.findOne({ _id: playlist });
     if (!foundPlaylist) {
       return [];
     }
+
+    // Enrich song IDs with full song data from CountryRecommendation collection
+    const enrichedSongs = await Promise.all(
+      foundPlaylist.songs.map(async (songId) => {
+        const songData = await this.recommendationCollection.findOne({ _id: songId });
+        if (songData) {
+          return {
+            _id: songData._id,
+            songTitle: songData.songTitle,
+            artist: songData.artist,
+            language: songData.language,
+            youtubeURL: songData.youtubeURL,
+            genre: songData.genre,
+            countryName: songData.countryName,
+            recType: songData.recType,
+          };
+        }
+        // If song data not found, return just the ID
+        return songId;
+      })
+    );
+
     return [{
       _id: foundPlaylist._id,
       name: foundPlaylist.name,
       owner: foundPlaylist.owner,
-      songs: foundPlaylist.songs,
+      songs: enrichedSongs,
     }];
   }
 }
