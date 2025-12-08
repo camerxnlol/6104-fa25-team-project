@@ -84,7 +84,9 @@ export default class CountryRecommendationConcept {
     } catch (error: any) {
       // Handle duplicate key error (race condition - another request created it first)
       if (error.code === 11000) {
-        console.log(`Country ${countryName} already exists (race condition), fetching existing entry`);
+        console.log(
+          `Country ${countryName} already exists (race condition), fetching existing entry`,
+        );
       } else {
         // Re-throw if it's not a duplicate key error
         throw error;
@@ -863,11 +865,10 @@ export default class CountryRecommendationConcept {
       // Check for exact duplicate among COMMUNITY recommendations
       const existing = recDocs.find((rec) =>
         rec.recType === "COMMUNITY" &&
-        rec.songTitle === songTitle &&
-        rec.artist === artist &&
-        rec.language === language &&
-        rec.youtubeURL === youtubeURL &&
-        rec.genre === (genre || "")
+        rec.songTitle.toLowerCase() === songTitle.toLowerCase() &&
+        rec.artist.toLowerCase() === artist.toLowerCase() &&
+        rec.language.toLowerCase() === language.toLowerCase() &&
+        rec.youtubeURL.toLowerCase() === youtubeURL.toLowerCase()
       );
 
       if (existing) {
