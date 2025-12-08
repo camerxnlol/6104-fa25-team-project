@@ -598,7 +598,7 @@ export default class CountryRecommendationConcept {
       `You are a helpful AI assistant in the role of a global music curator who specializes
     in providing song recommendations from various countries around the world.
     Given a country name, your task is to suggest 3 songs from underground or small music artists originating from that country. Perform the following steps:
-    
+
     1. Find 3 different underground or small music artists in the given country.
     2. For each of the artist found in step 1, find a song from that artist.
     3. **CRITICAL VERIFICATION**: Verify that the song title is correctly listed in the artist's discography and has a corresponding YouTube video.
@@ -610,9 +610,9 @@ export default class CountryRecommendationConcept {
     1. Before including any song, the model must internally confirm the song title's presence in the artist's official discography.
     2. The model must confirm the existence of a corresponding video on YouTube (any type: lyric, album track, or MV).
     3. **If verification fails for a song, it MUST be discarded, and a new song must be chosen until 3 verified results are found.**
-    
+
     Your response must be formatted as a JSON array of objects. Each object should be formatted as follows:
-    { 
+    {
       "songTitle": "<Title of the song>",
       "artist": "<Name of the artist>",
       "language": "<Language of the song>",
@@ -624,7 +624,7 @@ export default class CountryRecommendationConcept {
       {
         "songTitle": "Em Không",
         "artist": "Vũ Thanh Vân",
-        "language": "Vietnamese", 
+        "language": "Vietnamese",
         "genre": "Pop ballad"
       },
       {
@@ -635,7 +635,7 @@ export default class CountryRecommendationConcept {
       }
     ]
 
-    DO NOT include any additional text, explanations, or commentary outside of the JSON array. 
+    DO NOT include any additional text, explanations, or commentary outside of the JSON array.
     DO NOT include line breaks or formatting outside the JSON array.
 
     In other words, your first character must be "[" and your last character must be "]".
@@ -663,7 +663,7 @@ export default class CountryRecommendationConcept {
       `You are a helpful AI assistant in the role of a global music curator who specializes
     in providing artist recommendations from various countries around the world.
     Given a country name, your task is to suggest ${amount} artists that are underground or small music artists originating from that country. Perform the following steps:
-    
+
     1. Find ${amount} different underground or small music artists in the given country.
     2. You must strictly adhere to the following critical requirements:
       ${criticalRequirements.join("\n")}
@@ -671,13 +671,13 @@ export default class CountryRecommendationConcept {
     ***VERIFICATION PROCESS (MANDATORY):***
     1. Before including any artist, the model must internally confirm the artist's origin from the specified country.
     3. **If verification fails for an artist, it MUST be discarded, and a new artist must be chosen until ${amount} verified results are found.**
-    
+
     Your response must be formatted as a array of strings. Each string should be the name of an artist.
 
     EXAMPLE: An example of a properly formatted response for 3 artists in Taiwan is as follows:
     RESPONSE: [ "LilHAO", "茄子蛋 EggPlantEgg", "陳忻玥" ]
 
-    DO NOT include any additional text, explanations, or commentary outside of the array. 
+    DO NOT include any additional text, explanations, or commentary outside of the array.
 
     In other words, your first character must be "[" and your last character must be "]".
 
@@ -693,7 +693,7 @@ export default class CountryRecommendationConcept {
   ): string {
     const prompt =
       `Verify that the following songs originate from ${countryName} and provide the language in which the song is sung.
-      
+
       Your response should be a JSON array of length ${songs.length}. Each object in the array should have the following format:
       {
         "songTitle": "<Title of the song>",
@@ -702,7 +702,7 @@ export default class CountryRecommendationConcept {
         "verified": "<true if the song is verified to be from ${countryName}, false otherwise>"
         "language": "<Language of the song IF verified is true, empty string otherwise>",
       }
-      EXAMPLE RESPONSE for country=Taiwan: [ 
+      EXAMPLE RESPONSE for country=Taiwan: [
       [
         {
           "songTitle": "Em Không",
@@ -726,7 +726,7 @@ export default class CountryRecommendationConcept {
           "language": "Taiwanese Hokkien"
         }
       ]
-      
+
       SONGS TO VERIFY: ${JSON.stringify(songs)}`;
 
     return prompt;
@@ -835,7 +835,7 @@ export default class CountryRecommendationConcept {
       artist: string;
       language: string;
       youtubeURL: string;
-      genre?: string;
+      genre: string;
     },
   ): Promise<{ recId: recId } | { error: string }> {
     try {

@@ -112,7 +112,17 @@ export const GetCommunityRecsResponseError: Sync = ({ request, error }) => ({
 
 // --- Add Community Recommendation ---
 export const AddCommunityRecRequest: Sync = (
-  { request, session, user, countryName, title, artist, genre = "", language, url },
+  {
+    request,
+    session,
+    user,
+    countryName,
+    songTitle,
+    artist,
+    genre,
+    language,
+    youtubeURL,
+  },
 ) => ({
   when: actions([
     Requesting.request,
@@ -120,10 +130,11 @@ export const AddCommunityRecRequest: Sync = (
       path: "/CountryRecommendation/addCommunityRec",
       session,
       countryName,
-      title,
+      songTitle,
       artist,
       language,
-      url,
+      youtubeURL,
+      genre,
     },
     { request },
   ]),
@@ -132,11 +143,11 @@ export const AddCommunityRecRequest: Sync = (
   },
   then: actions([CountryRecommendation.addCommunityRec, {
     countryName,
-    songTitle: title,
+    songTitle,
     artist,
     genre,
     language,
-    youtubeURL: url,
+    youtubeURL,
   }]),
 });
 
