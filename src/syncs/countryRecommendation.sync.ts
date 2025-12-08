@@ -133,11 +133,11 @@ export const AddCommunityRecRequest: Sync = (
   },
   then: actions([CountryRecommendation.addCommunityRec, {
     countryName,
-    title,
+    songTitle: title,
     artist,
     genre,
     language,
-    url,
+    youtubeURL: url,
   }]),
 });
 
