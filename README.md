@@ -12,3 +12,4 @@
 ## Assignments
 - [Problem Framing](design/problem_framing.md)
 - [Functional Design](design/functional_design.md)
+- [User Testing](design/user_testing_tasks.md)
