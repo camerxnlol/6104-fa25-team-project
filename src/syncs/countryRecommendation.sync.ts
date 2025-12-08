@@ -112,7 +112,7 @@ export const GetCommunityRecsResponseError: Sync = ({ request, error }) => ({
 
 // --- Add Community Recommendation ---
 export const AddCommunityRecRequest: Sync = (
-  { request, session, user, countryName, title, artist, genre, language, url },
+  { request, session, user, countryName, title, artist, genre = "", language, url },
 ) => ({
   when: actions([
     Requesting.request,
@@ -122,7 +122,6 @@ export const AddCommunityRecRequest: Sync = (
       countryName,
       title,
       artist,
-      genre,
       language,
       url,
     },
