@@ -1,4 +1,4 @@
-import { Requesting, Sessioning, UserAuthentication } from "@concepts";
+import { Playlist, Requesting, Sessioning, UserAuthentication } from "@concepts";
 import { actions, Sync } from "@engine";
 
 // --- Registration ---
@@ -11,7 +11,7 @@ export const RegisterRequest: Sync = ({ request, username, password }) => ({
   then: actions([UserAuthentication.register, { username, password }]),
 });
 
-// On successful registration, create a session and respond with both user and session.
+// On successful registration, create a session and a default "Liked" playlist
 export const RegisterResponse: Sync = ({ request, user }) => ({
   when: actions(
     [Requesting.request, { path: "/UserAuthentication/register" }, { request }],
@@ -19,15 +19,17 @@ export const RegisterResponse: Sync = ({ request, user }) => ({
   ),
   then: actions(
     [Sessioning.create, { user }],
+    [Playlist.createPlaylist, { owner: user, name: "Liked" }],
   ),
 });
 
-// Once session is created, send the response
-export const RegisterRespondWithSession: Sync = ({ request, user, session }) => ({
+// Once session and default playlist are created, send the response
+export const RegisterRespondWithSession: Sync = ({ request, user, session, playlist }) => ({
   when: actions(
     [Requesting.request, { path: "/UserAuthentication/register" }, { request }],
     [UserAuthentication.register, {}, { user }],
     [Sessioning.create, { user }, { session }],
+    [Playlist.createPlaylist, { owner: user, name: "Liked" }, { playlist }],
   ),
   then: actions([Requesting.respond, { request, user, session }]),
 });
