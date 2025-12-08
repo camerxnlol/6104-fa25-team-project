@@ -72,19 +72,30 @@ export default class CountryRecommendationConcept {
       return { country: existing };
     }
 
-    await this.countryCollection.insertOne({
-      _id: countryName,
-      recommendations: [],
-    });
+    try {
+      await this.countryCollection.insertOne({
+        _id: countryName,
+        recommendations: [],
+      });
 
+      console.log(
+        `CREATED new entry for country: ${countryName}`,
+      );
+    } catch (error: any) {
+      // Handle duplicate key error (race condition - another request created it first)
+      if (error.code === 11000) {
+        console.log(`Country ${countryName} already exists (race condition), fetching existing entry`);
+      } else {
+        // Re-throw if it's not a duplicate key error
+        throw error;
+      }
+    }
+
+    // Fetch the country entry (whether we just created it or it already existed)
     const newCountry = await this.countryCollection.findOne({
       _id: countryName,
     });
-    if (!newCountry) return { error: "Failed to create country." };
-
-    console.log(
-      `CREATED new entry for country: ${countryName}`,
-    );
+    if (!newCountry) return { error: "Failed to create or fetch country." };
 
     return { country: newCountry };
   }
