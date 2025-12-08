@@ -45,3 +45,87 @@ When a new user starts getting song recommendations, there is no playlist to add
 
 **Passports**
 Although the user was able to use the passport feature as intended, they didn't feel that the feature gamified the experience of discovering new countries. We could add more visual indications or animations when a user "visits" a new country, eg. a notification saying "check your passport" or "new country added to passport" whenever a user listens to music from a new country.
+
+# User 2: Lynn Jung
+
+## Overview
+The user was able to complete all major tasks and provided several insights about usability, navigation, and onboarding. Their feedback not only highlighted specific friction points but also revealed deeper issues in how first time users understand the structure of the interface.
+
+---
+
+## Key Observations and Analysis
+
+### 1. First Impressions and Visual Design
+The user responded positively to the overall look of the app. They described the interface as clean and appreciated the hover animations and other small interaction details. These visual elements seemed to signal polish and care.
+
+**Deeper insight:**  
+While the minimalist aesthetic helped the app feel modern, it also removed cues that help guide user attention. The user’s later navigation challenges show that the design may lean too far toward minimalism at the cost of clarity. This tension between aesthetics and usability surfaced repeatedly across tasks.
+
+---
+
+### 2. Difficulty Finding the Login Flow
+The user had trouble figuring out where to log in because the landing page does not include a visible login button. They eventually located it, but not without scanning the interface and hesitating.
+
+**Underlying cause:**  
+Because the landing page does not indicate how to get started, the user is forced to guess what to do next. This is especially risky for onboarding, where early confusion can disrupt the formation of a mental model for the rest of the app.
+
+**Evidence:**  
+The user explicitly mentioned wanting fewer minimalist choices and more tooltips or indicators that explain what each element does. This suggests that the current design does not meet user expectations for discoverability.
+
+---
+
+### 3. Issues Logging a Community Recommendation
+The user attempted to add a community recommendation but encountered a backend bug that prevented it. They tried multiple times before concluding that something was wrong.
+
+**Underlying cause:**  
+Although the root problem is a technical issue, the interface did not provide feedback to explain why the action failed. Without error messaging, the user is left unsure whether they misunderstood the feature or the system malfunctioned.
+
+**Insight for design:**  
+Users expect confirmation when contributing content. Lack of response undermines trust in interactive features and can discourage participation.
+
+---
+
+### 4. Music Discovery Experience
+The user enjoyed exploring songs from countries they had never listened to before. They commented that this was one of the most engaging parts of the session. They also said the purpose of the app felt “very clear,” which confirms that the core value proposition communicates itself effectively once users reach the globe interaction.
+
+---
+
+### 5. Navigation Between Sections
+The user generally understood the navigation structure, but they briefly hesitated when trying to locate the playlist button. They also struggled again with the login page, reinforcing that unlabeled icons can be difficult to interpret without prior exposure.
+
+**Underlying cause:**  
+The reliance on icon-only buttons assumes that the icons are intuitive. For this user, several were not. This indicates that iconography alone may not support rapid comprehension, especially for new users.
+
+---
+
+### 6. Passport Feature
+The user liked the passport feature and said it “fits into the global theme of the app well.” They reached it without difficulty and seemed to understand its purpose.
+
+**Deeper insight:**  
+Although the feature made sense, the session did not reveal evidence that it added motivation or excitement. This suggests room to strengthen the sense of progression and reward.
+
+---
+
+### 7. Ability to Complete Tasks
+The user eventually succeeded at everything they attempted. When friction occurred, it was due to missing labels, unclear entry points, or the backend bug.
+
+**Underlying insight:**  
+The app’s conceptual model is strong enough that users can recover even after moments of confusion. Improving surface level cues would likely make the overall experience feel smoother.
+
+---
+
+## Opportunities for Improvement
+
+### 1. Add Clear Labels and Tooltips
+The user repeatedly expressed a desire for labels on buttons and more guidance throughout the interface. This would reduce guesswork and make early navigation more intuitive.
+
+### 2. Improve Onboarding on the Landing Page
+A visible login button or a short onboarding message would help new users understand how to begin. This small change directly addresses the user’s initial confusion.
+
+### 3. Provide Feedback for Community Contribution Actions
+When adding a recommendation fails, the interface should inform the user. Even once the backend issue is fixed, a confirmation flow will improve trust and clarity.
+
+### 4. Strengthen the Passport Experience
+Although the user understood the feature, there is an opportunity to increase its emotional impact. Notifications or subtle animations could reinforce the feeling of embarking on a global journey.
+
+---
