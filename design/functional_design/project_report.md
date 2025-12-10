@@ -19,7 +19,14 @@ We listened to our user tests to implement some frontend changes in the last cou
 
 
 ### Nicholas
+**Using Agents in a Team**
+- I found that this was a good experience of what it's like to work in a team where multiple members use AI coding agents. Whereas in my personal project, all the code was either written by myself or a single instance of an LLM, this group project helped me think a lot more about the importance of context. Since each person and their coding agent writes code slightly differently, it was important to make sure that the code that I was producing did not conflict with other components that I wasn't primarily in charge of. We definitely had to look over some of our syncs to resolve some parameter mismatches.
 
+**Using AI for UI Design**
+- For my personal project, I designed and revised my UI primarily manually and through text input with an LLM. On the group project, I initially experimented with giving the LLM the UI sketches we drew and a textual description of the sketch. It turned out pretty bad. My conclusion is that it's still difficult to get AI coding agents to adhere to a very specific UI design vision, and they are better at either generating UIs on their own with minimal input, or revising existing UIs.
+
+**Designing an App in a Team**
+- Overall, I really enjoyed working on SongBridge with my teammates. For us, dividing up the work by concepts and have each member implement both the backend and frontend for that concept ended up being a successful strategy. Different groups in different settings might have other ways to split up work, but I think what was most important was streamlining the work process so that each member could always work on something without having to wait for an extended period of time for some other component to be finished fist.
 
 ### Sinjin
 
