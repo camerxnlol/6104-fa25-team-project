@@ -1,6 +1,10 @@
 # Project Report
 ## Design Summary
+### Backend
 On the backend, the main changes in our project were in the CountryRecommendation concept. This concept went through many stages in the course of our development due to us learning that certain things jut couldnʻt work as they were. For example, we learned that it isnʻt possible for an LLM to return good links to youtube videos. It will always hallucinate them. We went through a lot of approaches to fix this issue. In the end, we landed on an approach that used an LLM-Youtube API-Spotify API-LLM pipeline to get artists, find songs, and validate them. This was able to yield good results, as all of our system generated recommendations were able to be both accurate and exist. Another small change we made to CountryRecommendations was making genre a required field like the other fields. This made things much easier and simpler for us.
+
+### Frontend
+We listened to our user tests to implement some frontend changes in the last couple days before the final deadline. Firstly, we made the home page the login page. Our users had some trouble finding the login page when the globe UI was the landing page, so we swapped it to the login page. This is also to prevent users from performing any actions that require authentication before being logged in. Secondly, we added some onboarding text as well as brought back our navigation bar. Our users found the button icons unintuitive, so we brought back the navigation bar with text to make swapping between pages seamless. After checkpoint beta, we also did a visual overhaul of the app to unify design choices across the different pages of SongBridge. Until checkpoint beta, we were all working on our own pages, and thus had our own visions of what the app should look like. We sat down and agreed upon a color scheme as well as a general look and feel for the app. We're very satisfied in its turnout!
 
 ## Reflection
 ### Cameron
