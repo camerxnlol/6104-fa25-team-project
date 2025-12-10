@@ -9,8 +9,9 @@
   - Updates from Checkpoint Alpha: Decided to focus almost entirely on completing the backend. We worked on the frontend with the time we had left. For Checkpoint Beta, we will focus entirely on connecting the frontend components developed in Checkpoint Alpha and creating what else is needed for our MVP. See development plan linked above for more details.
 - [11/21 Meeting Agenda](meeting_agendas/11-21.md)
 - [11/24 Meeting Agenda](meeting_agendas/11-24.md)
+- [12/1 Meeting Agenda](meeting_agendas/12-1.md)
 ## Assignments
 - [Problem Framing](design/problem_framing.md)
 - [Functional Design](design/functional_design.md)
 - [User Testing](design/user_testing_tasks.md)
-- [Project Report](design/functional_design/project_report.md)
+- [Project Report and Reflection](design/functional_design/project_report.md)
