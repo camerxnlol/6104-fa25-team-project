@@ -1,6 +1,6 @@
 # Project Report
 ## Design Summary
-TODO
+On the backend, the main changes in our project were in the CountryRecommendation concept. This concept went through many stages in the course of our development due to us learning that certain things jut couldnʻt work as they were. For example, we learned that it isnʻt possible for an LLM to return good links to youtube videos. It will always hallucinate them. We went through a lot of approaches to fix this issue. In the end, we landed on an approach that used an LLM-Youtube API-Spotify API-LLM pipeline to get artists, find songs, and validate them. This was able to yield good results, as all of our system generated recommendations were able to be both accurate and exist. Another small change we made to CountryRecommendations was making genre a required field like the other fields. This made things much easier and simpler for us.
 
 ## Reflection
 ### Cameron

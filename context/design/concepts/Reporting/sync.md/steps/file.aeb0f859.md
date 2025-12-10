@@ -1,9 +1,13 @@
-import {
-  CountryRecommendation,
-  Reporting,
-  Requesting,
-  Sessioning,
-} from "@concepts";
+---
+timestamp: 'Tue Dec 09 2025 20:36:10 GMT-0500 (Eastern Standard Time)'
+parent: '[[../20251209_203610.93750333.md]]'
+content_id: aeb0f8591859234830a8a482b895c0ee16543b5b1b238ae22985134aecb36493
+---
+
+# file: src/syncs/reporting.sync.ts
+
+```typescript
+import { CountryRecommendation, Reporting, Requesting, Sessioning } from "@concepts";
 import { actions, Sync } from "@engine";
 
 // --- Initialize Object ---
@@ -99,6 +103,7 @@ export const UnreportResponseError: Sync = ({ request, error }) => ({
   ),
   then: actions([Requesting.respond, { request, error }]),
 });
+
 /**
  * When an object's report count exceeds 67 after a new report is made,
  * automatically remove the corresponding community recommendation.
@@ -120,8 +125,7 @@ export const RemoveCommunityRecOnHighReports: Sync = (
       { count },
     );
     // We only proceed if the count is greater than the threshold of 67.
-    // Cast the value to 'number' to satisfy TypeScript's type checker.
-    return frames.filter(($) => ($[count] as number) > 67);
+    return frames.filter(($) => $[count] > 67);
   },
   then: actions(
     // If the condition is met, remove the community recommendation.
@@ -129,3 +133,4 @@ export const RemoveCommunityRecOnHighReports: Sync = (
     [CountryRecommendation.removeCommunityRec, { recId: objectId }],
   ),
 });
+```

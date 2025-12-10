@@ -10,47 +10,35 @@
   recommendations from an LLM when needed.
 - **state**:
   - a set of Countries with
-    - a countryName String
-    - a set of Recs
+    - a recommendations set of Recs
   - a set of Recs with
-    - a recId ID
-    - a countryName String
-    - a songTitle String
-    - an artist String
-    - a genre String
-    - a language String
-    - a youtubeURL String
-    - a type String (“System” | “Community”)
+    - a countryName string
+    - a songTitle string
+    - an artist string
+    - a genre string
+    - a language string
+    - a youtubeURL string
+    - a recType String (“System” | “Community”)
 - **actions**:
   - `getCountryEntry (countryName: String): (country: Country)`
-    - **effects**: if name not in Countries, create new Country with empty recs
-  - `getNewRecs (countryName: String): (recs: ID[ ])`
+    - **effects**: if name not in Countries, create new Country with empty recommendations
+  - `getSystemRecs (countryName: String): (recommendations: ID[ ])`
     - **requires**: country exists
-    - **effects**:
-      - call LLM for 3 new song recommendations from countryName
-      - for each returned recommendation
-        - if not already in country.recs (same title + artist)
-          - create new Rec with new recId, type=“System”, and remaining data
-            corresponding to LLM output
-          - add recId to country.recs
-    - **returns**: list of 3 recIds
-  - `getSystemRecs (countryName: String): (recs: ID[ ])`
+    - **effects**: filter recommendations of type “System”, return 3 randomly chosen rec
+      IDs, call llm/youtube/spotify to get and save new recommendations depending on heuristic
+  - `getCommunityRecs (countryName: String): (recommendations: ID[ ])`
     - **requires**: country exists
-    - **effects**: filter recs of type “System”, return 3 randomly chosen rec
-      IDs, call llm to get new recs depending on heuristic
-  - `getCommunityRecs (countryName: String): (recs: ID[ ])`
-    - **requires**: country exists
-    - **effects**: filter recs of type “Community”, return 3 randomly chosen IDs (or less if there are <3 community recs)
-  - `addCommunityRec (countryName, title, artist, genre, language, url): (recId: ID)`
+    - **effects**: filter recommendations of type “Community”, return 3 randomly chosen IDs (or less if there are <3 community recs)
+  - `addCommunityRec (countryName, songTitle, artist, language, youtubeURL, genre): (recId: ID)`
     - **requires**: country exists
     - **effects**:
       - create new Rec with new recId, type="Community", and remaining data as
         provided
-      - add recId to country.recs
+      - add recId to country.rerecommendationscs
     - **returns**: recId
   - `removeCommunityRec (recId)`
     - **requires**: recId exists, rec.type == “Community”
-    - **effects**: remove recId from recs
+    - **effects**: remove recId from recommendations
 
 ## UserAuthentication
 

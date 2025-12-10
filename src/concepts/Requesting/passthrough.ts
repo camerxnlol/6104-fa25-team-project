@@ -65,6 +65,14 @@ export const exclusions: Array<string> = [
   "/api/CountryRecommendation/getCommunityRecs",
   "/api/CountryRecommendation/addCommunityRec",
   "/api/CountryRecommendation/removeCommunityRec",
+  "/api/CountryRecommendation/verifyAndFilterSongs",
+  "/api/CountryRecommendation/llmVerify",
+  "/api/CountryRecommendation/getYoutubeUrl",
+  "/api/CountryRecommendation/getSpotifyAccessToken",
+  "/api/CountryRecommendation/getSpotifySongFromArtist",
+  "/api/CountryRecommendation/getArtistPrompt",
+  "/api/CountryRecommendation/getVerifyPrompt",
+  "/api/CountryRecommendation/loadLLM",
 
   "/api/Passport/logExploration",
 

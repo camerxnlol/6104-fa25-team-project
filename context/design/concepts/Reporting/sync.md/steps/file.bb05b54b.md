@@ -1,9 +1,13 @@
-import {
-  CountryRecommendation,
-  Reporting,
-  Requesting,
-  Sessioning,
-} from "@concepts";
+---
+timestamp: 'Tue Dec 09 2025 20:35:48 GMT-0500 (Eastern Standard Time)'
+parent: '[[../20251209_203548.fac90198.md]]'
+content_id: bb05b54bfd2ce52ec624420ddeca51dd4c8978b8bfedd211109a593c6af83ca2
+---
+
+# file: src/syncs/reporting.sync.ts
+
+```typescript
+import { Reporting, Requesting, Sessioning } from "@concepts";
 import { actions, Sync } from "@engine";
 
 // --- Initialize Object ---
@@ -99,33 +103,5 @@ export const UnreportResponseError: Sync = ({ request, error }) => ({
   ),
   then: actions([Requesting.respond, { request, error }]),
 });
-/**
- * When an object's report count exceeds 67 after a new report is made,
- * automatically remove the corresponding community recommendation.
- */
-export const RemoveCommunityRecOnHighReports: Sync = (
-  { request, objectId, count },
-) => ({
-  when: actions(
-    // We match the original request to get the context (objectId)
-    [Requesting.request, { path: "/Reporting/Report", objectId }, { request }],
-    // This sync triggers *after* the report action has successfully completed.
-    [Reporting.Report, { objectId }, {}],
-  ),
-  where: async (frames) => {
-    // After reporting, we query for the object's new report count.
-    frames = await frames.query(
-      Reporting._getReportCount,
-      { objectId },
-      { count },
-    );
-    // We only proceed if the count is greater than the threshold of 67.
-    // Cast the value to 'number' to satisfy TypeScript's type checker.
-    return frames.filter(($) => ($[count] as number) > 67);
-  },
-  then: actions(
-    // If the condition is met, remove the community recommendation.
-    // We map the `objectId` from the report to the `recId` of the recommendation.
-    [CountryRecommendation.removeCommunityRec, { recId: objectId }],
-  ),
-});
+
+```

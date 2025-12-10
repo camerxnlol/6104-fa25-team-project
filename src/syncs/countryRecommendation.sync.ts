@@ -3,41 +3,6 @@ import { actions, Sync } from "@engine";
 
 // Note: All requests are authenticated by checking for a valid session.
 
-// --- Get New Recommendations ---
-export const GetNewRecsRequest: Sync = (
-  { request, session, user, countryName },
-) => ({
-  when: actions([
-    Requesting.request,
-    { path: "/CountryRecommendation/getNewRecs", session, countryName },
-    { request },
-  ]),
-  where: async (frames) => {
-    return await frames.query(Sessioning._getUser, { session }, { user });
-  },
-  then: actions([CountryRecommendation.getNewRecs, { countryName }]),
-});
-
-export const GetNewRecsResponse: Sync = ({ request, recommendations }) => ({
-  when: actions(
-    [Requesting.request, { path: "/CountryRecommendation/getNewRecs" }, {
-      request,
-    }],
-    [CountryRecommendation.getNewRecs, {}, { recommendations }],
-  ),
-  then: actions([Requesting.respond, { request, recommendations }]),
-});
-
-export const GetNewRecsResponseError: Sync = ({ request, error }) => ({
-  when: actions(
-    [Requesting.request, { path: "/CountryRecommendation/getNewRecs" }, {
-      request,
-    }],
-    [CountryRecommendation.getNewRecs, {}, { error }],
-  ),
-  then: actions([Requesting.respond, { request, error }]),
-});
-
 // --- Get System Recommendations ---
 export const GetSystemRecsRequest: Sync = (
   { request, session, user, countryName },
