@@ -26,7 +26,7 @@ We listened to our user tests to implement some frontend changes in the last cou
 - For my personal project, I designed and revised my UI primarily manually and through text input with an LLM. On the group project, I initially experimented with giving the LLM the UI sketches we drew and a textual description of the sketch. It turned out pretty bad. My conclusion is that it's still difficult to get AI coding agents to adhere to a very specific UI design vision, and they are better at either generating UIs on their own with minimal input, or revising existing UIs.
 
 **Designing an App in a Team**
-- Overall, I really enjoyed working on SongBridge with my teammates. For us, dividing up the work by concepts and have each member implement both the backend and frontend for that concept ended up being a successful strategy. Different groups in different settings might have other ways to split up work, but I think what was most important was streamlining the work process so that each member could always work on something without having to wait for an extended period of time for some other component to be finished fist.
+- Overall, I really enjoyed working on SongBridge with my teammates. For us, dividing up the work by concepts and have each member implement both the backend and frontend for that concept ended up being a successful strategy. Different groups in different settings might have other ways to split up work, but I think what was most important was streamlining the work process so that each member could always work on something without having to wait for an extended period of time for some other component to be finished first.
 
 ### Sinjin
 
