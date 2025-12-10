@@ -13,3 +13,4 @@
 - [Problem Framing](design/problem_framing.md)
 - [Functional Design](design/functional_design.md)
 - [User Testing](design/user_testing_tasks.md)
+- [Project Report](design/functional_design/project_report.md)
